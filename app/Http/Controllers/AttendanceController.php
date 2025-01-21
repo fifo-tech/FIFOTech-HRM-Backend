@@ -87,7 +87,10 @@ class AttendanceController extends Controller
             ]);
 
             // Find the employee by emp_id
-            $employee = Employee::where('emp_id', $validatedData['emp_id'])->first();
+            $employee = Employee::where('emp_id', $validatedData['emp_id'])
+                ->orderBy('updated_at', 'desc') // Order by updated_at in descending order
+                ->first();
+
 
             if (!$employee) {
                 return $this->response(false, 'Employee not found', null, 404);

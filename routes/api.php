@@ -9,6 +9,7 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Middleware\CheckIpAddress;
+//Use App\Http\Controllers\UserActivityController;
 
 
 
@@ -35,15 +36,20 @@ Route::middleware([
     Route::post('/create-department',[DepartmentController::class,'createDepartment']);
     Route::post('/update-department/{id}',[DepartmentController::class,'updateDepartment']);
     Route::get('/department-list',[DepartmentController::class,'getDepartments']);
+    Route::get('/department-details/{id}',[DepartmentController::class,'getDepartmentByID']);
     Route::delete('/delete-department/{id}',[DepartmentController::class,'deleteDepartment']);
 
     // Designation API
     Route::post('/create-designation',[DesignationController::class,'createDesignation']);
     Route::get('/designation-list',[DesignationController::class,'designationList']);
+    Route::get('/designation-details/{id}',[DesignationController::class,'getDesignationByID']);
+    Route::post('/update-designation/{id}',[DesignationController::class,'updateDesignation']);
     Route::delete('/delete-designation/{id}',[DesignationController::class,'deleteDesignation']);
 
     // Employee API
     Route::post('/create-employee', [EmployeeController::class, 'createEmployee']);
+    Route::get('/get-employee-details/{id}', [EmployeeController::class, 'getEmployeeDetails']);
+    Route::post('/edit-employee/{id}', [EmployeeController::class, 'editEmployee']);
     Route::get('/employee-list', [EmployeeController::class, 'employeeList']);
     Route::post('/update-employee/{id}', [EmployeeController::class, 'updateEmployee']);
     Route::get('/total-employee', [EmployeeController::class, 'countEmployeesWithEmpId']);
@@ -56,6 +62,11 @@ Route::middleware([
     Route::post('/update-attendance', [AttendanceController::class, 'updateAttendanceByAdmin']);
     //Route::delete('/delete-attendance/{id}', [AttendanceController::class, 'deleteAttendance']);
     Route::get('/total-present', [AttendanceController::class, 'getTotalPresentAndAbsent']);
+
+//    User_activity_log API
+//    Route::post('/log-user-activity', [UserActivityController::class, 'logActivity']);
+//    Route::get('/user-activity-logs', [UserActivityController::class, 'getActivityLogs']);
+
 
 
 

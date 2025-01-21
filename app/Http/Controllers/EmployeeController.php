@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use App\Models\Department;
+use App\Models\Designation;
 
 class EmployeeController extends Controller
 {
@@ -81,6 +83,143 @@ class EmployeeController extends Controller
             return $this->response(false, 'Something went wrong', $e->getMessage(), 500);
         }
     }
+
+    // Edit Employee
+    public function editEmployee(Request $request, $id)
+    {
+        try {
+            // Find the employee and user associated with the ID
+            $employee = Employee::findOrFail($id);
+            $user = User::findOrFail($employee->user_id);
+
+            // Validate the incoming request
+            $request->validate([
+                'first_name' => 'nullable|string|max:255',
+                'last_name' => 'nullable|string|max:255',
+                'email' => 'nullable|string|email|max:255|unique:users,email,' . $user->id,
+                'phone_num' => 'nullable|string|max:15',
+                'gender' => 'nullable|string|max:10',
+                'dept_id' => 'nullable|exists:departments,id',
+                'designation_id' => 'nullable|exists:designations,id',
+                'supervisor_id' => 'nullable|exists:users,id',
+                'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
+            ]);
+
+            // Update user details
+            if ($request->has('first_name')) {
+                $user->first_name = $request->first_name;
+                $employee->first_name = $request->first_name;
+            }
+            if ($request->has('last_name')) {
+                $user->last_name = $request->last_name;
+                $employee->last_name = $request->last_name;
+            }
+            if ($request->has('email')) {
+                $user->email = $request->email;
+                $employee->email = $request->email;
+            }
+
+            // Handle profile picture update
+            if ($request->hasFile('profile_picture')) {
+                // Delete the old profile picture if exists
+                if ($user->profile_photo_path) {
+                    Storage::disk('public')->delete($user->profile_photo_path);
+                }
+
+                // Store the new profile picture
+                $profilePicturePath = $request->file('profile_picture')->store('profile_pictures', 'public');
+                $user->profile_photo_path = $profilePicturePath;
+            }
+
+            // Save user details
+            $user->save();
+
+            // Update employee details
+            if ($request->has('phone_num')) {
+                $employee->phone_num = $request->phone_num;
+            }
+            if ($request->has('gender')) {
+                $employee->gender = $request->gender;
+            }
+            if ($request->has('dept_id')) {
+                $employee->dept_id = $request->dept_id;
+            }
+            if ($request->has('designation_id')) {
+                $employee->designation_id = $request->designation_id;
+            }
+            if ($request->has('supervisor_id')) {
+                $employee->supervisor_id = $request->supervisor_id;
+            }
+
+            // Save employee details
+            $employee->save();
+
+            // Return success response with the updated employee
+            return $this->response(true, 'Employee Updated Successfully', $employee, 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Handle validation errors and return the specific validation error messages
+            return $this->response(false, 'Validation Error', $e->errors(), 422);
+
+        } catch (\Exception $e) {
+            // Handle all other exceptions
+            return $this->response(false, 'Something went wrong', $e->getMessage(), 500);
+        }
+    }
+    // Employee Details when edit
+    public function getEmployeeDetails($id)
+    {
+        try {
+            // Fetch the employee with associated user details
+            $employee = Employee::with('user')->find($id);
+
+            if (!$employee) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Employee not found',
+                ], 404);
+            }
+
+            // Fetch all departments and designations for dropdowns
+            $departments = Department::select('id', 'name')->get();
+            $designations = Designation::select('id', 'name')->get();
+
+            // Prepare the response data
+            $responseData = [
+                'employee' => [
+                    'id' => $employee->id,
+                    'first_name' => $employee->first_name,
+                    'last_name' => $employee->last_name,
+                    'email' => $employee->email,
+                    'phone_num' => $employee->phone_num,
+                    'gender' => $employee->gender,
+                    'dept_id' => $employee->dept_id,
+                    'designation_id' => $employee->designation_id,
+                    'supervisor_id' => $employee->supervisor_id,
+                    'profile_picture' => $employee->user->profile_photo_path
+                        ? asset('storage/' . $employee->user->profile_photo_path)
+                        : null,
+                ],
+                'departments' => $departments, // All departments
+                'designations' => $designations, // All designations
+            ];
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Employee details fetched successfully',
+                'data' => $responseData,
+            ], 200);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+
 
 
 

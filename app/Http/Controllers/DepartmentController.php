@@ -124,6 +124,32 @@ class DepartmentController extends Controller
         }
     }
 
+    // See Specific Department
+    public function getDepartmentByID($id)
+    {
+        try {
+            // Find the department by ID
+            $department = Department::findOrFail($id);
+
+            // Return success response with the department data
+            return $this->response(
+                true,
+                'Department fetched successfully',
+                $department,
+                200
+            );
+        } catch (\Exception $e) {
+            // Handle any exceptions (e.g., department not found)
+            return $this->response(
+                false,
+                'Department not found',
+                $e->getMessage(),
+                404
+            );
+        }
+    }
+
+
 
     // Delete Department API
     public function deleteDepartment($id)
