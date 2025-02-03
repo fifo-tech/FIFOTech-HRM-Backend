@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class Employee extends Model
 {
@@ -35,7 +36,15 @@ class Employee extends Model
         'experience',
         'facebook',
         'linkedin',
+        'contract_date',
+        'contract_end',
+        'leave_categories',
+        'role_description',
+        'github',
+        'citizenship',
     ];
+
+    protected $dates = ['contract_date', 'contract_end', 'date_of_birth'];
 
 
 
@@ -62,7 +71,7 @@ class Employee extends Model
 
     public function user()
     {
-        return $this->belongsTo(User::class, 'user_id');
+        return $this->belongsTo(User::class, 'user_id','id');
     }
 
     // One-to-many relationship (one employee has many attendances)
@@ -70,6 +79,12 @@ class Employee extends Model
     {
         return $this->hasMany(Attendance::class, 'employee_id');
     }
+
+    public function documents()
+    {
+        return $this->hasMany(Document::class);
+    }
+
 
 
 }

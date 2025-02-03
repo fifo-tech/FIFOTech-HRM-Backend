@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -10,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Department;
 use App\Models\Designation;
+use Carbon\Carbon;
 
 class EmployeeController extends Controller
 {
@@ -25,7 +27,14 @@ class EmployeeController extends Controller
                 'gender' => 'nullable|string|max:10',
                 'dept_id' => 'nullable|exists:departments,id',
                 'designation_id' => 'nullable|exists:designations,id',
+                'role_id' => 'nullable|exists:roles,id',
                 'emp_id' => 'nullable|string|max:50',
+                'basic_salary' => 'nullable|string|max:50',
+                'contract_date' => 'nullable|string|max:50',
+                'contract_end' => 'nullable|string|max:50',
+                'leave_categories' => 'nullable|string|max:255',
+                'role_description' => 'nullable|string|max:255',
+                'office_shift' => 'nullable|string|max:50',
             ]);
 
             // Determine the emp_id
@@ -45,7 +54,7 @@ class EmployeeController extends Controller
             $user->email = $request->email;
             $user->password = Hash::make("password"); // Hash the password
             $user->active_status = 1;
-            $user->role_id = 3; // Default to 'Employee' role
+            $user->role_id = $request->role_id;
 
             // Handle profile picture upload if exists
             if ($request->hasFile('profile_picture')) {
@@ -53,6 +62,7 @@ class EmployeeController extends Controller
                 $profilePicturePath = $request->file('profile_picture')->store('profile_pictures', 'public');
                 // Save the path in the database
                 $user->profile_photo_path = $profilePicturePath;
+//
             }
 
             if ($user->save()) {
@@ -68,6 +78,12 @@ class EmployeeController extends Controller
                 $employee->gender = $request->gender;
                 $employee->dept_id = $request->dept_id;
                 $employee->designation_id = $request->designation_id;
+                $employee->basic_salary = $request->basic_salary;
+                $employee->office_shift = $request->office_shift;
+                $employee->leave_categories = $request->leave_categories;
+                $employee->role_description = $request->role_description;
+                $employee->contract_date = $request->contract_date;
+                $employee->contract_end = $request->contract_end;
                 $employee->save();
             }
 
@@ -97,11 +113,18 @@ class EmployeeController extends Controller
                 'first_name' => 'nullable|string|max:255',
                 'last_name' => 'nullable|string|max:255',
                 'email' => 'nullable|string|email|max:255|unique:users,email,' . $user->id,
-                'phone_num' => 'nullable|string|max:15',
+                'phone_num' => 'nullable|string|min:11|max:15',
                 'gender' => 'nullable|string|max:10',
+                'office_shift' => 'nullable|string|max:50',
+                'contract_date' => 'nullable|date',
+                'contract_end' => 'nullable|date',
+                'leave_categories' => 'nullable|string|max:255',
+                'role_description' => 'nullable|string|max:255',
+                'basic_salary' => 'nullable|string|max:255',
                 'dept_id' => 'nullable|exists:departments,id',
                 'designation_id' => 'nullable|exists:designations,id',
                 'supervisor_id' => 'nullable|exists:users,id',
+                'role_id' => 'nullable|exists:roles,id',
                 'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:10240',
             ]);
 
@@ -117,6 +140,12 @@ class EmployeeController extends Controller
             if ($request->has('email')) {
                 $user->email = $request->email;
                 $employee->email = $request->email;
+            }
+            if ($request->has('role_id')) {
+                $user->role_id = $request->role_id;
+            }
+            if ($request->has('active_status')) {
+                $user->active_status = $request->active_status;
             }
 
             // Handle profile picture update
@@ -150,6 +179,25 @@ class EmployeeController extends Controller
             if ($request->has('supervisor_id')) {
                 $employee->supervisor_id = $request->supervisor_id;
             }
+            if ($request->has('basic_salary')) {
+                $employee->basic_salary = $request->basic_salary;
+            }
+            if ($request->has('office_shift')) {
+                $employee->office_shift = $request->office_shift;
+            }
+            if ($request->has('contract_date')) {
+                $employee->contract_date = $request->contract_date;
+            }
+            if ($request->has('contract_end')) {
+                $employee->contract_end = $request->contract_end;
+            }
+            if ($request->has('leave_categories')) {
+                $employee->leave_categories = $request->leave_categories;
+            }
+            if ($request->has('role_description')) {
+                $employee->role_description = $request->role_description;
+            }
+
 
             // Save employee details
             $employee->save();
@@ -166,6 +214,9 @@ class EmployeeController extends Controller
             return $this->response(false, 'Something went wrong', $e->getMessage(), 500);
         }
     }
+
+
+
     // Employee Details when edit
     public function getEmployeeDetails($id)
     {
@@ -183,6 +234,10 @@ class EmployeeController extends Controller
             // Fetch all departments and designations for dropdowns
             $departments = Department::select('id', 'name')->get();
             $designations = Designation::select('id', 'name')->get();
+            $roles = Role::select('id','name')->get();
+
+            $employee->contract_date = Carbon::parse($employee->contract_date);
+            $employee->contract_end = Carbon::parse($employee->contract_end);
 
             // Prepare the response data
             $responseData = [
@@ -193,15 +248,24 @@ class EmployeeController extends Controller
                     'email' => $employee->email,
                     'phone_num' => $employee->phone_num,
                     'gender' => $employee->gender,
+                    'role_id' => $employee->user->role_id,
                     'dept_id' => $employee->dept_id,
+                    'active_status' => $employee->user->active_status,
+                    'office_shift' => $employee->office_shift,
                     'designation_id' => $employee->designation_id,
                     'supervisor_id' => $employee->supervisor_id,
+                    'contract_date' => $employee->contract_date ? $employee->contract_date->format('Y-m-d') : null,
+                    'contract_end' => $employee->contract_end ? $employee->contract_end->format('Y-m-d') : null,
+                    'leave_categories' => $employee->leave_categories,
+                    'role_description' => $employee->role_description,
+                    'basic_salary' => $employee->basic_salary,
                     'profile_picture' => $employee->user->profile_photo_path
                         ? asset('storage/' . $employee->user->profile_photo_path)
                         : null,
                 ],
                 'departments' => $departments, // All departments
                 'designations' => $designations, // All designations
+                'roles' => $roles,
             ];
 
             return response()->json([
@@ -233,7 +297,7 @@ class EmployeeController extends Controller
                 'first_name' => 'nullable|string|max:255',
                 'last_name' => 'nullable|string|max:255',
                 'email' => 'nullable|string|email|max:255|unique:users,email,' . $id,
-                'phone_num' => 'nullable|string|max:15',
+                'phone_num' => 'nullable|string|min:11|max:15',
                 'gender' => 'nullable|string|max:10',
                 'dept_id' => 'nullable|exists:departments,id',
                 'designation_id' => 'nullable|exists:designations,id',
@@ -255,7 +319,15 @@ class EmployeeController extends Controller
                 'experience' => 'nullable|integer',
                 'facebook' => 'nullable|string|max:255',
                 'linkedin' => 'nullable|string|max:255',
-                'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:2048',
+                'github' => 'nullable|string|max:255',
+                'bank_name' => 'nullable|string|max:255',
+                'bank_account_number' => 'nullable|string|max:50|regex:/^[0-9]{6,20}$/',
+                'branch' => 'nullable|string|max:255',
+                'emg_contact_name' => 'nullable|string|max:255',
+                'emg_relationship' => 'nullable|string|max:50',
+                'emg_phone_number' => 'nullable|string|max:20|',
+                'emg_address' => 'nullable|string|max:500',
+                'profile_picture' => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
             ]);
 
             // Fetch the user and employee records using user_id
@@ -279,28 +351,16 @@ class EmployeeController extends Controller
                 $user->email = $request->email;
             }
 
-            // Handle profile picture upload if exists
-//            if ($request->hasFile('profile_picture')) {
-//                // Delete the old profile picture if exists
-//                if ($user->profile_photo_path && file_exists(storage_path('app/' . $user->profile_photo_path))) {
-//                    unlink(storage_path('app/' . $user->profile_photo_path));
-//                }
-//
-//                // Store the new profile picture and save the path
-//                $profilePicturePath = $request->file('profile_picture')->store('profile_pictures','public');
-//                $user->profile_photo_path = $profilePicturePath;
-//            }
-
+            // Handle profile picture update
             if ($request->hasFile('profile_picture')) {
-                // Delete the old profile picture if it exists
-                if (!empty($user->profile_photo_path) && Storage::disk('public')->exists($user->profile_photo_path)) {
+                // Delete the old profile picture if exists
+                if ($user->profile_photo_path) {
                     Storage::disk('public')->delete($user->profile_photo_path);
                 }
 
-                // Store the new profile picture in 'profile_pictures' folder and save the path
+                // Store the new profile picture
                 $profilePicturePath = $request->file('profile_picture')->store('profile_pictures', 'public');
                 $user->profile_photo_path = $profilePicturePath;
-                $user->save(); // Ensure the new path is saved to the database
             }
 
 
@@ -338,18 +398,6 @@ class EmployeeController extends Controller
 
             if ($request->has('office_shift')) {
                 $employee->office_shift = $request->office_shift;
-            }
-
-            if ($request->has('basic_salary')) {
-                $employee->basic_salary = $request->basic_salary;
-            }
-
-            if ($request->has('hourly_rate')) {
-                $employee->hourly_rate = $request->hourly_rate;
-            }
-
-            if ($request->has('payslip_type')) {
-                $employee->payslip_type = $request->payslip_type;
             }
 
             if ($request->has('date_of_birth')) {
@@ -406,6 +454,30 @@ class EmployeeController extends Controller
 
             if ($request->has('linkedin')) {
                 $employee->linkedin = $request->linkedin;
+            }
+            if ($request->has('github')) {
+                $employee->github = $request->github;
+            }
+            if ($request->has('bank_name')) {
+                $employee->bank_name = $request->bank_name;
+            }
+            if ($request->has('bank_account_number')) {
+                $employee->bank_account_number = $request->bank_account_number;
+            }
+            if ($request->has('branch')) {
+                $employee->branch = $request->branch;
+            }
+            if ($request->has('emg_contact_name')) {
+                $employee->emg_contact_name = $request->emg_contact_name;
+            }
+            if ($request->has('emg_relationship')) {
+                $employee->emg_relationship = $request->emg_relationship;
+            }
+            if ($request->has('emg_phone_number')) {
+                $employee->emg_phone_number = $request->emg_phone_number;
+            }
+            if ($request->has('emg_address')) {
+                $employee->emg_address = $request->emg_address;
             }
 
             // Save the updated employee data
@@ -468,6 +540,8 @@ class EmployeeController extends Controller
                         'last_name' => $employee->last_name,
                         'emp_id' => $employee->emp_id,
                         'email' => $employee->email,
+                        'phone_num' => $employee->phone_num,
+                        'blood_group' => $employee->blood_group,
                         'department_name' => $departmentName,
                         'designation_name' => $employee->designation->name ?? null,
                         'created_at' => $employee->created_at,
@@ -492,10 +566,6 @@ class EmployeeController extends Controller
             );
         }
     }
-
-
-
-
 
 
 
@@ -579,6 +649,157 @@ class EmployeeController extends Controller
         }
     }
 
+
+    // Employee Profile Details API
+
+    // Top Left Some info , Specific Employee Details
+    public function specificEmployeeDetails($id)
+    {
+        try {
+            // Fetch employee with relationships based on the provided ID
+            $employee = Employee::with([
+                'user' => function ($query) {
+                    $query->select('id', 'profile_photo_path', 'role_id', 'active_status');
+                },
+                'user.role' => function ($query) {
+                    $query->select('id', 'name');
+                },
+                'department' => function ($query) {
+                    $query->select('id', 'name', 'created_at');
+                },
+                'designation' => function ($query) {
+                    $query->select('id', 'name');
+                },
+            ])->find($id);
+
+            // Check if the employee exists
+            if (!$employee) {
+                return $this->response(
+                    false,
+                    'Employee not found',
+                    null,
+                    404
+                );
+            }
+
+            $employee->contract_date = Carbon::parse($employee->contract_date);
+            $employee->contract_end = Carbon::parse($employee->contract_end);
+
+            // Fetch all departments and designations
+            $departments = Department::select('id', 'name')->get();
+            $designations = Designation::select('id', 'name')->get();
+
+            // Format the employee response data
+            $formattedEmployee = [
+                'id' => $employee->id,
+                'user_id' => $employee->user_id,
+                'profile_photo' => $employee->user->profile_photo_path ? url('storage/' . $employee->user->profile_photo_path) : null,
+                'role_name' => $employee->user->role->name ?? null,
+                'active_status' => $employee->user->active_status === 1 ? 'Active' : 'Inactive',
+                'supervisor_id' => $employee->supervisor_id,
+                'first_name' => $employee->first_name,
+                'last_name' => $employee->last_name,
+                'emp_id' => $employee->emp_id,
+                'email' => $employee->email,
+                'department_name' => $employee->department->name ?? 'Unassigned',
+                'designation_name' => $employee->designation->name ?? 'Not Assigned',
+                'contract_date' => $employee->contract_date ? $employee->contract_date->format('Y-m-d') : null,
+                'contract_end' => $employee->contract_end ? $employee->contract_end->format('Y-m-d') : null,
+                'basic_salary' => $employee->basic_salary,
+                'hourly_rate' => $employee->hourly_rate,
+                'payslip_type' => $employee->payslip_type,
+                'office_shift' => $employee->office_shift,
+                'leave_categories' => $employee->leave_categories,
+                'role_description' => $employee->role_description,
+                'phone_num' => $employee->phone_num,
+                'gender' => $employee->gender,
+                'date_of_birth' => $employee->date_of_birth,
+                'marital_status' => $employee->marital_status,
+                'district' => $employee->district,
+                'city' => $employee->city,
+                'zip_code' => $employee->zip_code,
+                'religion' => $employee->religion,
+                'blood_group' => $employee->blood_group,
+                'nationality' => $employee->nationality,
+                'present_address' => $employee->present_address,
+                'permanent_address' => $employee->permanent_address,
+                'bio' => $employee->bio,
+                'experience' => $employee->experience,
+                'facebook' => $employee->facebook,
+                'linkedin' => $employee->linkedin,
+                'citizenship' => $employee->citizenship,
+                'github' => $employee->github,
+                'bank_name' => $employee->bank_name,
+                'bank_account_number' => $employee->bank_account_number,
+                'branch' => $employee->branch,
+                'emg_contact_name' => $employee->emg_contact_name,
+                'emg_relationship' => $employee->emg_relationship,
+                'emg_phone_number' => $employee->emg_phone_number,
+                'emg_address' => $employee->emg_address,
+                'created_at' => $employee->created_at,
+                'updated_at' => $employee->updated_at,
+            ];
+
+            // Combine employee data with departments and designations
+            $response = [
+                'employee' => $formattedEmployee,
+                'departments' => $departments,
+                'designations' => $designations,
+            ];
+
+            return $this->response(
+                true,
+                'Employee details fetched successfully',
+                $response,
+                200
+            );
+        } catch (\Exception $e) {
+            // Handle any exceptions
+            return $this->response(
+                false,
+                'Something went wrong',
+                $e->getMessage(),
+                500
+            );
+        }
+
+
+    }
+
+
+
+
+
+    //password change by admin,hr and employee
+
+//        public function resetPassword(Request $request)
+//    {
+//        $user = Auth::user();
+//
+//        if ($user->role === 'employee') {
+//            // Validate current password and new passwords
+//            $request->validate([
+//                'current_password' => 'required',
+//                'new_password' => 'required|confirmed|min:8',
+//            ]);
+//
+//            if (!Hash::check($request->current_password, $user->password)) {
+//                return response()->json(['error' => 'Current password is incorrect'], 400);
+//            }
+//
+//            $user->password = Hash::make($request->new_password);
+//        } elseif (in_array($user->role, ['admin', 'hr'])) {
+//            // Admin/HR can directly reset the password
+//            $request->validate(['employee_id' => 'required|exists:users,id']);
+//
+//            $employee = User::findOrFail($request->employee_id);
+//            $employee->password = Hash::make('DefaultPassword123'); // Or generate random
+//        }
+//
+//        $user->save();
+//
+//        return response()->json(['message' => 'Password successfully updated']);
+//    }
 
 
 

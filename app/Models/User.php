@@ -77,4 +77,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(Employee::class, 'supervisor_id');
     }
+
+    public function employee()
+    {
+        return $this->hasOne(Employee::class, 'user_id', 'id'); // Assuming 'user_id' in employees table
+    }
+
 }

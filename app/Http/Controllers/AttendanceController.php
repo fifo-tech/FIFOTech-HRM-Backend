@@ -186,6 +186,256 @@ class AttendanceController extends Controller
 
 
 
+    // CLock in API
+    public function clockIn(Request $request)
+    {
+        try {
+            // Validate the request
+            $validatedData = $request->validate([
+                'late_reason' => 'nullable|string|max:255',
+            ]);
+
+            $user = auth()->user(); // Get the logged-in user
+            //print_r($user);exit;
+            $employee = $user->employee; // Get the employee record
+
+            if (!$employee) {
+                return $this->response(false, 'Employee record not found', null, 404);
+            }
+
+            $today = now()->format('Y-m-d'); // Get today's date
+            $timezone = 'Asia/Dhaka';
+
+            // Check if an attendance record already exists for today
+            $attendance = Attendance::where('employee_id', $employee->id)
+                ->where('date', $today)
+                ->first();
+
+            if ($attendance && $attendance->clock_in) {
+                return $this->response(false, 'Clock In already recorded for today', null, 400);
+            }
+
+            $clockInTime = now()->setTimezone($timezone)->format('H:i'); // Current time in 24-hour format
+            $officeStartTime = \Carbon\Carbon::createFromTime(9, 0, 0, $timezone); // 09:00 AM
+
+            // Calculate late time
+            $clockInCarbon = \Carbon\Carbon::createFromFormat('H:i', $clockInTime, $timezone);
+            $late = $clockInCarbon->gt($officeStartTime)
+                ? $officeStartTime->diff($clockInCarbon)->format('%H:%I')
+                : '00:00';
+
+            // Create or update attendance record
+            $attendance = Attendance::updateOrCreate(
+                [
+                    'employee_id' => $employee->id,
+                    'date' => $today,
+                ],
+                [
+                    'clock_in' => $clockInTime,
+                    'late' => $late,
+                    'clock_in_reason' => $validatedData['late_reason'] ?? null,
+                    'status' => 'Present',
+                ]
+
+            );
+
+            return $this->response(true, 'Clock In recorded successfully', $attendance, 200);
+        } catch (\Exception $e) {
+            return $this->response(false, 'Something went wrong while clocking in', $e->getMessage(), 500);
+        }
+    }
+
+    // Clock Out
+    public function clockOut(Request $request)
+    {
+        $today = Carbon::today()->format('Y-m-d');
+        //print_r($today);exit;
+        try {
+            // Validate the request
+            $validatedData = $request->validate([
+                'early_leave_reason' => 'nullable|string|max:255',
+            ]);
+
+            $user = auth()->user(); // Get the logged-in user
+            $employee = $user->employee; // Get the employee record
+
+            if (!$employee) {
+                return $this->response(false, 'Employee record not found', null, 404);
+            }
+
+            $today = now()->format('Y-m-d'); // Get today's date
+            $timezone = 'Asia/Dhaka';
+
+            // Check if an attendance record exists for today
+            $attendance = Attendance::where('employee_id', $employee->id)
+                ->where('date', $today)
+                ->first();
+
+            if (!$attendance || !$attendance->clock_in) {
+                return $this->response(false, 'Clock In must be recorded first', null, 400);
+            }
+
+            if ($attendance->clock_out) {
+                return $this->response(false, 'Clock Out already recorded for today', null, 400);
+            }
+
+            $clockOutTime = now()->setTimezone($timezone)->format('H:i'); // Current time in 24-hour format
+            $officeEndTime = \Carbon\Carbon::createFromTime(18, 0, 0, $timezone); // 06:00 PM
+
+            // Parse clock-in and clock-out times
+            $clockInCarbon = \Carbon\Carbon::parse($attendance->clock_in)->setTimezone($timezone);
+
+            $clockOutCarbon = \Carbon\Carbon::parse($clockOutTime)->setTimezone($timezone);
+
+
+            // Calculate total work hours
+            $totalWorkHour = $clockInCarbon->diff($clockOutCarbon)->format('%H:%I');
+
+            // Calculate early leaving time
+            $earlyLeaving = $clockOutCarbon->lt($officeEndTime)
+                ? $officeEndTime->diff($clockOutCarbon)->format('%H:%I')
+                : '00:00';
+
+            // Update the attendance record
+            $attendance->update([
+                'clock_out' => $clockOutTime,
+                'early_leaving' => $earlyLeaving,
+                'total_work_hour' => $totalWorkHour,
+                'clock_out_reason' => $validatedData['early_leave_reason'] ?? null,
+            ]);
+
+            return $this->response(true, 'Clock Out recorded successfully', $attendance, 200);
+        } catch (\Exception $e) {
+            return $this->response(false, 'Something went wrong while clocking out', $e->getMessage(), 500);
+        }
+    }
+
+
+    /// Specific Employee Attendance
+    public function getSpecificEmployeeAttendance()
+    {
+        try {
+            // logged in user
+            $user = auth()->user();
+
+            // employee record of user
+            $employee = $user->employee;
+
+            if (!$employee) {
+                return $this->response(false, 'Employee record not found', null, 404);
+            }
+
+            // find out first and last date of current month
+            $startOfMonth = now()->startOfMonth()->format('Y-m-d');
+            $endOfMonth = now()->endOfMonth()->format('Y-m-d');
+
+            // find out current month attendance record (Descending Order)
+            $attendances = Attendance::with('employee')
+                ->where('employee_id', $employee->id)
+                ->whereBetween('date', [$startOfMonth, $endOfMonth])
+                ->orderBy('date', 'desc') // 🔥 DESCENDING ORDER (Latest First)
+                ->get();
+
+            // to make customised response
+            $customizedResponse = $attendances->map(function ($attendance) {
+                return [
+                    'id' => $attendance->id,
+                    'employee_id' => $attendance->employee_id,
+                    'date' => $attendance->date,
+                    'status' => $attendance->status,
+                    'clock_in' => $attendance->clock_in,
+                    'clock_in_reason' => $attendance->clock_in_reason,
+                    'clock_out' => $attendance->clock_out,
+                    'clock_out_reason' => $attendance->clock_out_reason,
+                    'early_leaving' => $attendance->early_leaving,
+                    'total_work_hour' => $attendance->total_work_hour,
+                    'ip_address' => $attendance->ip_address,
+                    'device' => $attendance->device,
+                    'late' => $attendance->late,
+                    'location' => $attendance->location,
+                    'first_name' => $attendance->employee->first_name ?? null,
+                    'last_name' => $attendance->employee->last_name ?? null,
+                    'email' => $attendance->employee->email ?? null,
+                    'phone_num' => $attendance->employee->phone_num ?? null,
+                    'emp_id' => $attendance->employee->emp_id ?? null,
+                    'image' => $attendance->employee->user->profile_photo_path
+                        ? url('storage/' . $attendance->employee->user->profile_photo_path) : null,
+                ];
+            });
+
+            return $this->response(
+                true,
+                'Employee attendance records fetched successfully',
+                $customizedResponse,
+                200
+            );
+
+        } catch (\Exception $e) {
+            return $this->response(
+                false,
+                'Something went wrong while fetching employee attendance',
+                $e->getMessage(),
+                500
+            );
+        }
+    }
+
+    // In Out Time
+    public function inOutTime()
+    {
+        try {
+
+            $user = auth()->user();
+
+
+            $employee = $user->employee;
+
+            if (!$employee) {
+                return $this->response(false, 'Employee record not found', null, 404);
+            }
+
+
+            $today = now()->format('Y-m-d');
+
+            //find out today attendance record
+            $attendance = Attendance::where('employee_id', $employee->id)
+                ->whereDate('date', $today)
+                ->first();
+
+            if (!$attendance) {
+                return $this->response(false, 'No attendance record found for today', null, 404);
+            }
+
+
+            $customizedResponse = [
+                'date' => $attendance->date,
+                'clock_in' => $attendance->clock_in,
+                'clock_out' => $attendance->clock_out,
+            ];
+
+            return $this->response(
+                true,
+                'Employee attendance fetched successfully',
+                $customizedResponse,
+                200
+            );
+
+        } catch (\Exception $e) {
+            return $this->response(
+                false,
+                'Something went wrong while fetching today\'s attendance',
+                $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
+
+
+
+
+
 
 
 

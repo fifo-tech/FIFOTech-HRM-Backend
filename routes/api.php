@@ -9,7 +9,8 @@ use App\Http\Controllers\RoleController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Middleware\CheckIpAddress;
-//Use App\Http\Controllers\UserActivityController;
+Use App\Http\Controllers\UserActivityController;
+use App\Http\Controllers\DocumentController;
 
 
 
@@ -29,8 +30,13 @@ Route::middleware([
 
     // Add more protected routes here
 
-    // Role Add API
+    // Role  API
     Route::post('/create-role',[RoleController::class,'createRole']);
+    Route::get('/roles-list', [RoleController::class, 'getRoles']); // Fetch all roles
+    Route::get('/role-details/{id}', [RoleController::class, 'getRoleById']); // Fetch a single role by ID
+    Route::put('/update-role/{id}', [RoleController::class, 'updateRole']); // Update a role
+    Route::delete('/delete-role/{id}', [RoleController::class, 'deleteRole']); // Delete a role
+
 
     // Department API
     Route::post('/create-department',[DepartmentController::class,'createDepartment']);
@@ -59,23 +65,39 @@ Route::middleware([
     // Attendance API
     //Route::post('/create-attendance', [AttendanceController::class, 'createAttendance']);
     Route::get('/attendance-list', [AttendanceController::class, 'getAttendanceList']);
+    Route::get('/employee-attendance-list', [AttendanceController::class, 'getSpecificEmployeeAttendance']);
     Route::post('/update-attendance', [AttendanceController::class, 'updateAttendanceByAdmin']);
     //Route::delete('/delete-attendance/{id}', [AttendanceController::class, 'deleteAttendance']);
     Route::get('/total-present', [AttendanceController::class, 'getTotalPresentAndAbsent']);
+    Route::get('/in-out-time', [AttendanceController::class, 'inOutTime']);
 
-//    User_activity_log API
-//    Route::post('/log-user-activity', [UserActivityController::class, 'logActivity']);
-//    Route::get('/user-activity-logs', [UserActivityController::class, 'getActivityLogs']);
-
-
-
+    // User_activity_log API
+    Route::post('/log-user-activity', [UserActivityController::class, 'logActivity']);
+    Route::get('/user-activity-logs', [UserActivityController::class, 'getActivityLogs']);
 
 
+    // Employee Profile ALL API
+    Route::get('/employee-profile/{id}', [EmployeeController::class, 'specificEmployeeDetails']);
+
+
+
+    // Documents API
+    Route::post('/add-documents', [DocumentController::class, 'addDocument']);
+    Route::delete('/delete-document/{id}', [DocumentController::class, 'deleteDocument']);
+    Route::get('/get-documents/{id}', [DocumentController::class, 'getDocuments']);
+    Route::get('download-document/{id}', [DocumentController::class, 'downloadDocument']);
+
+
+
+    // Clock in and Clock Out API Routes
+    Route::post('/clock-in',[AttendanceController::class,'clockIn']);
+    Route::post('/clock-out',[AttendanceController::class,'clockOut']);
 
 
 
     // Logout route
     Route::delete('/logout', [UserController::class, 'logout']);
+    Route::post('/change-password', [UserController::class, 'changePassword']);
 
 
 

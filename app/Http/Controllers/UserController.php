@@ -8,6 +8,7 @@ use App\Models\User;
 use App\Models\EmployeeProfile;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Auth;
 
 class UserController extends Controller
 {
@@ -216,6 +217,65 @@ class UserController extends Controller
             return $this->response(false, 'An error occurred during logout', $e->getMessage(), 500);
         }
     }
+
+
+    // Change Password API
+    public function changePassword(Request $request)
+    {
+        try {
+            // Validate the incoming request
+            $request->validate([
+                'id' => 'required|integer|exists:users,id',
+            ]);
+
+            // Find the user by ID
+            $user = User::find($request->id);
+
+            // Get the logged-in user
+            $loggedInUser = Auth::user();
+
+            // Check if logged-in user is admin/HR or employee
+            if ($loggedInUser->role_id == 1 || $loggedInUser->role_id == 2) {
+                // Admin or HR can change any user's password without current password
+                $request->validate([
+                    'password' => 'required|string|min:8|confirmed',
+                ]);
+            } elseif ($loggedInUser->id == $user->id && $user->role_id == 3) {
+                // Employee can change their own password, must provide current password
+                $request->validate([
+                    'current_password' => 'required|string|min:8',
+                    'password' => 'required|string|min:8|confirmed',
+                ]);
+
+                // Verify current password
+                if (!Hash::check($request->current_password, $user->password)) {
+                    return $this->response(false, 'Current password is incorrect', [], 401);
+                }
+            } else {
+                // If it's an employee trying to change another employee's password, throw error
+                return $this->response(false, 'You do not have permission to change this password', [], 403);
+            }
+
+            // Update the password
+            $user->password = Hash::make($request->password);
+            $user->save();
+
+            return $this->response(true, 'Password updated successfully', [], 200);
+
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            // Handle validation errors
+            return $this->response(false, 'Validation error', $e->errors(), 422);
+
+        } catch (\Exception $e) {
+            // Handle unexpected exceptions
+            return $this->response(false, 'An error occurred', $e->getMessage(), 500);
+        }
+    }
+
+
+
+
+
 
 
 

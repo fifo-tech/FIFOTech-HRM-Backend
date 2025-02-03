@@ -53,13 +53,40 @@ class DepartmentController extends Controller
 
 
     // All Departments
+//    public function getDepartments(Request $request)
+//    {
+//        try {
+//            // Get all departments
+//            $departments = Department::all();
+//
+//            // Return success response with the department data
+//            return $this->response(
+//                true,
+//                'Departments fetched successfully',
+//                $departments,
+//                200
+//            );
+//        } catch (\Exception $e) {
+//            // Handle any exceptions
+//            return $this->response(
+//                false,
+//                'Something went wrong',
+//                $e->getMessage(),
+//                500
+//            );
+//        }
+//    }
+
+    // All Departments with total employees
     public function getDepartments(Request $request)
     {
         try {
-            // Get all departments
-            $departments = Department::all();
+            // Get all departments with employee count
+            $departments = Department::select('id', 'name', 'head_name', 'created_at')
+                ->withCount('employees') // Add employee count for each department
+                ->get();
 
-            // Return success response with the department data
+            // Return success response with department data
             return $this->response(
                 true,
                 'Departments fetched successfully',
@@ -76,6 +103,7 @@ class DepartmentController extends Controller
             );
         }
     }
+
 
 
     // Update Department

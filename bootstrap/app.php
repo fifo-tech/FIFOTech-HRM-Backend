@@ -19,8 +19,9 @@ return Application::configure(basePath: dirname(__DIR__))
         // Register the 'check.ip' middleware using the proper method
         $middleware->alias([
             'check.ip'=>CheckIpAddress::class,
-//            'track.activity' => TrackUserActivity::class,
-        ]); // Add the middleware globally
+            'track.activity' => TrackUserActivity::class,
+        ]);
+        // Add the middleware globally
 
 //        $middleware->group('api', [
 //            TrackUserActivity::class,
