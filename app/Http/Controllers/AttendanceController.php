@@ -18,7 +18,7 @@ class AttendanceController extends Controller
             // Fetch attendance records for today's date
             $attendances = Attendance::with([
                 'employee' => function ($query) {
-                    $query->select('id', 'user_id', 'first_name', 'last_name', 'email', 'emp_id')
+                    $query->select('id', 'user_id', 'first_name', 'last_name', 'email','phone_num', 'emp_id')
                         ->with(['user' => function ($userQuery) {
                             $userQuery->select('id', 'profile_photo_path');
                         }]);
@@ -48,6 +48,7 @@ class AttendanceController extends Controller
                     'first_name' => $attendance->employee->first_name ?? null,
                     'last_name' => $attendance->employee->last_name ?? null,
                     'email' => $attendance->employee->email ?? null,
+                    'phone_num' => $attendance->employee->phone_num ?? null,
                     'emp_id' => $attendance->employee->emp_id ?? null,
                     // Include profile photo path
                     'image' => $attendance->employee->user->profile_photo_path
