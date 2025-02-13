@@ -34,7 +34,7 @@ Route::middleware([
     Route::post('/create-role',[RoleController::class,'createRole']);
     Route::get('/roles-list', [RoleController::class, 'getRoles']); // Fetch all roles
     Route::get('/role-details/{id}', [RoleController::class, 'getRoleById']); // Fetch a single role by ID
-    Route::put('/update-role/{id}', [RoleController::class, 'updateRole']); // Update a role
+    Route::post('/update-role/{id}', [RoleController::class, 'updateRole']); // Update a role
     Route::delete('/delete-role/{id}', [RoleController::class, 'deleteRole']); // Delete a role
 
 
@@ -64,12 +64,17 @@ Route::middleware([
 
     // Attendance API
     //Route::post('/create-attendance', [AttendanceController::class, 'createAttendance']);
+    Route::get('/digital-attendance-list', [AttendanceController::class, 'getAttendanceFromDevice']);
     Route::get('/attendance-list', [AttendanceController::class, 'getAttendanceList']);
     Route::get('/employee-attendance-list', [AttendanceController::class, 'getSpecificEmployeeAttendance']);
     Route::post('/update-attendance', [AttendanceController::class, 'updateAttendanceByAdmin']);
     //Route::delete('/delete-attendance/{id}', [AttendanceController::class, 'deleteAttendance']);
     Route::get('/total-present', [AttendanceController::class, 'getTotalPresentAndAbsent']);
     Route::get('/in-out-time', [AttendanceController::class, 'inOutTime']);
+    Route::get('/department-wise-attendance-list', [AttendanceController::class, 'departmentWiseAttendance']);
+    Route::get('/attendance/current-month/{id}', [AttendanceController::class, 'getCurrentMonthAttendance']);
+
+
 
     // User_activity_log API
     Route::post('/log-user-activity', [UserActivityController::class, 'logActivity']);

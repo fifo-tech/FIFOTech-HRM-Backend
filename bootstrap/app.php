@@ -35,7 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
 
     ->withSchedule(function (Schedule $schedule) {
         // Add your scheduled commands here
-        $schedule->command('attendance:create-daily')->dailyAt('00:00'); // Schedule to run at midnight
+        $schedule->command('attendance:create-daily')->timezone('Asia/Dhaka')->dailyAt('00:00'); // Schedule to run at midnight
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

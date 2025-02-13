@@ -2,14 +2,43 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Employee;
 use Carbon\Carbon;
+//Use App\Libraries\ZKLibrary\ZKLibrary;
+
+
 
 class AttendanceController extends Controller
 {
-    public function getAttendanceList()
+
+//    public function getAttendanceFromDevice()
+//    {
+//        // Instantiate the ZKTeco object with device IP and port
+//        $zk = new ZKLibrary('192.168.105.80', 4370); // Replace with your device IP and port
+//
+//        // Connect to the device
+//        if ($zk->connect()) {
+//            // Assuming the library has a method like `getAttendance()` to get logs
+//            $attendance = $zk->getAttendance();  // Replace with correct method if necessary
+//
+//            // echo "<pre>";print_r($attendance); exit;
+//             // dd($attendance);
+//
+//
+//            // Return response with attendance data
+//            return response()->json($attendance);
+//        } else {
+//            // Return an error if unable to connect
+//            return response()->json(['error' => 'Unable to connect to device'], 500);
+//        }
+//    }
+
+
+
+public function getAttendanceList()
     {
         try {
             // Get today's date
@@ -73,6 +102,78 @@ class AttendanceController extends Controller
             );
         }
     }
+
+// to avoid test admin and test employee(with emp_id=null) to the list
+//    public function getAttendanceList()
+//    {
+//        try {
+//            // Get today's date
+//            $date = now()->format('Y-m-d');
+//
+//            // Fetch attendance records for today's date, filtering out employees with NULL emp_id
+//            $attendances = Attendance::with([
+//                'employee' => function ($query) {
+//                    $query->whereNotNull('emp_id') // Ensure emp_id is not NULL
+//                    ->where('emp_id', '!=', '') // Ensure emp_id is not empty
+//                    ->select('id', 'user_id', 'first_name', 'last_name', 'email', 'phone_num', 'emp_id')
+//                        ->with(['user' => function ($userQuery) {
+//                            $userQuery->select('id', 'profile_photo_path');
+//                        }]);
+//                }
+//            ])
+//                ->where('date', $date)
+//                ->whereHas('employee', function ($query) {
+//                    $query->whereNotNull('emp_id')->where('emp_id', '!=', '');
+//                })
+//                ->get();
+//
+//            // Customize the response structure
+//            $customizedResponse = $attendances->map(function ($attendance) {
+//                return [
+//                    'id' => $attendance->id,
+//                    'employee_id' => $attendance->employee_id,
+//                    'date' => $attendance->date,
+//                    'status' => $attendance->status,
+//                    'clock_in' => $attendance->clock_in,
+//                    'clock_in_reason' => $attendance->clock_in_reason,
+//                    'clock_out' => $attendance->clock_out,
+//                    'clock_out_reason' => $attendance->clock_out_reason,
+//                    'early_leaving' => $attendance->early_leaving,
+//                    'total_work_hour' => $attendance->total_work_hour,
+//                    'ip_address' => $attendance->ip_address,
+//                    'device' => $attendance->device,
+//                    'late' => $attendance->late,
+//                    'location' => $attendance->location,
+//                    // Embed employee data directly
+//                    'first_name' => $attendance->employee->first_name ?? null,
+//                    'last_name' => $attendance->employee->last_name ?? null,
+//                    'email' => $attendance->employee->email ?? null,
+//                    'phone_num' => $attendance->employee->phone_num ?? null,
+//                    'emp_id' => $attendance->employee->emp_id ?? null,
+//                    // Include profile photo path
+//                    'image' => $attendance->employee->user->profile_photo_path
+//                        ? url('storage/' . $attendance->employee->user->profile_photo_path) : null,
+//                ];
+//            });
+//
+//            // Return success response with the customized data
+//            return $this->response(
+//                true,
+//                'Attendance records fetched successfully',
+//                $customizedResponse,
+//                200
+//            );
+//        } catch (\Exception $e) {
+//            // Handle any exceptions
+//            return $this->response(
+//                false,
+//                'Something went wrong while fetching attendance',
+//                $e->getMessage(),
+//                500
+//            );
+//        }
+//    }
+
 
 
     // Update Attendance by Admin
@@ -165,12 +266,12 @@ class AttendanceController extends Controller
             $today = Carbon::today();
            // echo print_r($today);exit;
             // Get the total number of present employees today
-            $totalPresent = Attendance::where('status', 'Present')
+            $totalPresent = Attendance::where('status', 'Present',)
                 ->whereDate('date', $today)
                 ->count();
 
             // Get the total number of absent employees today
-            $totalAbsent = Attendance::where('status', 'Absent')
+            $totalAbsent = Attendance::where('status', 'Absent',)
                 ->whereDate('date', $today)
                 ->count();
 
@@ -197,7 +298,6 @@ class AttendanceController extends Controller
             ]);
 
             $user = auth()->user(); // Get the logged-in user
-            //print_r($user);exit;
             $employee = $user->employee; // Get the employee record
 
             if (!$employee) {
@@ -216,14 +316,19 @@ class AttendanceController extends Controller
                 return $this->response(false, 'Clock In already recorded for today', null, 400);
             }
 
-            $clockInTime = now()->setTimezone($timezone)->format('H:i'); // Current time in 24-hour format
+            // Get the current time in 12-hour AM/PM format with hours, minutes, and seconds
+            $clockInTime = now()->setTimezone($timezone)->format('h:i:s A'); // Example: "09:15:30 AM"
+
+            // Get current time in 24-hour format for database storage
+            $clockInTime24 = now()->setTimezone($timezone)->format('H:i:s'); // Example: "09:15:30"
+
             $officeStartTime = \Carbon\Carbon::createFromTime(9, 0, 0, $timezone); // 09:00 AM
 
             // Calculate late time
-            $clockInCarbon = \Carbon\Carbon::createFromFormat('H:i', $clockInTime, $timezone);
+            $clockInCarbon = \Carbon\Carbon::createFromFormat('h:i:s A', $clockInTime, $timezone);
             $late = $clockInCarbon->gt($officeStartTime)
-                ? $officeStartTime->diff($clockInCarbon)->format('%H:%I')
-                : '00:00';
+                ? $officeStartTime->diff($clockInCarbon)->format('%H:%I:%S') // Include seconds
+                : '00:00:00'; // Include seconds if no late time
 
             // Create or update attendance record
             $attendance = Attendance::updateOrCreate(
@@ -232,12 +337,12 @@ class AttendanceController extends Controller
                     'date' => $today,
                 ],
                 [
-                    'clock_in' => $clockInTime,
+                    'clock_in' => $clockInTime24, // Save in 24-hour format
+                    'clock_in_12hr' => $clockInTime, // Save in 12-hour format with AM/PM
                     'late' => $late,
                     'clock_in_reason' => $validatedData['late_reason'] ?? null,
                     'status' => 'Present',
                 ]
-
             );
 
             return $this->response(true, 'Clock In recorded successfully', $attendance, 200);
@@ -246,11 +351,11 @@ class AttendanceController extends Controller
         }
     }
 
+
     // Clock Out
     public function clockOut(Request $request)
     {
         $today = Carbon::today()->format('Y-m-d');
-        //print_r($today);exit;
         try {
             // Validate the request
             $validatedData = $request->validate([
@@ -280,26 +385,30 @@ class AttendanceController extends Controller
                 return $this->response(false, 'Clock Out already recorded for today', null, 400);
             }
 
-            $clockOutTime = now()->setTimezone($timezone)->format('H:i'); // Current time in 24-hour format
+            // Get current time in 12-hour AM/PM format with hour, minute, and second
+            $clockOutTime = now()->setTimezone($timezone)->format('h:i:s A'); // Example: "12:17:00 PM"
+
+            // Get current time in 24-hour format with hour, minute, and second (for database)
+            $clockOutTime24 = now()->setTimezone($timezone)->format('H:i:s'); // Example: "12:17:00"
+
+            // Office end time (6:00 PM) for early leaving calculation
             $officeEndTime = \Carbon\Carbon::createFromTime(18, 0, 0, $timezone); // 06:00 PM
 
             // Parse clock-in and clock-out times
             $clockInCarbon = \Carbon\Carbon::parse($attendance->clock_in)->setTimezone($timezone);
+            $clockOutCarbon = \Carbon\Carbon::createFromFormat('H:i:s', $clockOutTime24, $timezone);
 
-            $clockOutCarbon = \Carbon\Carbon::parse($clockOutTime)->setTimezone($timezone);
-
-
-            // Calculate total work hours
-            $totalWorkHour = $clockInCarbon->diff($clockOutCarbon)->format('%H:%I');
+            // Calculate total work hours including seconds
+            $totalWorkHour = $clockInCarbon->diff($clockOutCarbon)->format('%H:%I:%S'); // Including seconds
 
             // Calculate early leaving time
             $earlyLeaving = $clockOutCarbon->lt($officeEndTime)
-                ? $officeEndTime->diff($clockOutCarbon)->format('%H:%I')
-                : '00:00';
+                ? $officeEndTime->diff($clockOutCarbon)->format('%H:%I:%S') // Include seconds
+                : '00:00:00'; // Include seconds if early leaving
 
-            // Update the attendance record
+            // Update the attendance record with the correct time formats
             $attendance->update([
-                'clock_out' => $clockOutTime,
+                'clock_out' => $clockOutTime24, // Store in 24-hour format with seconds in the DB
                 'early_leaving' => $earlyLeaving,
                 'total_work_hour' => $totalWorkHour,
                 'clock_out_reason' => $validatedData['early_leave_reason'] ?? null,
@@ -310,6 +419,7 @@ class AttendanceController extends Controller
             return $this->response(false, 'Something went wrong while clocking out', $e->getMessage(), 500);
         }
     }
+
 
 
     /// Specific Employee Attendance
@@ -334,7 +444,7 @@ class AttendanceController extends Controller
             $attendances = Attendance::with('employee')
                 ->where('employee_id', $employee->id)
                 ->whereBetween('date', [$startOfMonth, $endOfMonth])
-                ->orderBy('date', 'desc') // 🔥 DESCENDING ORDER (Latest First)
+                ->orderBy('date', 'desc') //  DESCENDING ORDER (Latest First)
                 ->get();
 
             // to make customised response
@@ -433,8 +543,104 @@ class AttendanceController extends Controller
 
 
 
+//Department wise Attendance only by Clock In time.
+    public function departmentWiseAttendance()
+    {
+        try {
+            // Get today's date
+            $date = now()->format('Y-m-d');
+
+            // Fetch attendance records for today's date, filtering only employees who have clocked in but not clocked out
+            $attendances = Attendance::with([
+                'employee' => function ($query) {
+                    $query->select('id', 'user_id', 'first_name', 'last_name', 'email', 'phone_num', 'emp_id', 'dept_id')
+                        ->with(['user' => function ($userQuery) {
+                            $userQuery->select('id', 'profile_photo_path');
+                        }])
+                        ->with('department:id,name'); // Load department details
+                }
+            ])
+                ->where('date', $date)
+                ->whereNotNull('clock_in') // Only include employees who clocked in
+                ->whereNull('clock_out')   // Exclude employees who have clocked out
+                ->get();
+
+            // Group attendance records by department
+            $departmentWiseAttendance = $attendances->groupBy(function ($attendance) {
+                return $attendance->employee->department->name ?? 'Unknown Department';
+            });
+
+            // Customize the response structure department-wise
+            $customizedResponse = $departmentWiseAttendance->map(function ($attendancesInDepartment, $departmentName) {
+                return [
+                    'department' => $departmentName,
+                    'employees' => $attendancesInDepartment->map(function ($attendance) {
+                        return [
+                            'id' => $attendance->id,
+                            'employee_id' => $attendance->employee_id,
+                            'date' => $attendance->date,
+                            'status' => $attendance->status,
+                            'clock_in' => $attendance->clock_in,
+                            'clock_in_reason' => $attendance->clock_in_reason,
+                            'late' => $attendance->late,
+                            // Embed employee data directly
+                            'first_name' => $attendance->employee->first_name ?? null,
+                            'last_name' => $attendance->employee->last_name ?? null,
+                            'email' => $attendance->employee->email ?? null,
+                            'phone_num' => $attendance->employee->phone_num ?? null,
+                            'emp_id' => $attendance->employee->emp_id ?? null,
+                            // Include profile photo path
+                            'image' => $attendance->employee->user->profile_photo_path
+                                ? url('storage/' . $attendance->employee->user->profile_photo_path) : null,
+                        ];
+                    })
+                ];
+            });
+
+            // Return success response with the department-wise attendance data
+            return $this->response(
+                true,
+                'Department-wise attendance records fetched successfully',
+                $customizedResponse,
+                200
+            );
+        } catch (\Exception $e) {
+            // Handle any exceptions
+            return $this->response(
+                false,
+                'Something went wrong while fetching attendance',
+                $e->getMessage(),
+                500
+            );
+        }
+    }
 
 
+    public function getCurrentMonthAttendance($employee_id)
+    {
+        $year = date('Y');
+        $month = date('m');
+
+        $summary = Attendance::where('employee_id', $employee_id)
+            ->whereYear('date', $year)
+            ->whereMonth('date', $month)
+            ->selectRaw("
+            COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
+            COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
+            COUNT(CASE WHEN late IS NOT NULL THEN 1 END) as total_late
+        ")
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Current month attendance summary fetched successfully',
+            'data' => [
+                'total_present' => $summary->total_present ?? 0,
+                'total_absent' => $summary->total_absent ?? 0,
+                'total_late' => $summary->total_late ?? 0,
+            ],
+        ], 200);
+    }
 
 
 

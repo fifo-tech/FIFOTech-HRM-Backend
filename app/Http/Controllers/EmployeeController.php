@@ -574,8 +574,8 @@ class EmployeeController extends Controller
     {
         try {
             // Count employees where emp_id is not null
-            //$employeeCount = Employee::whereNotNull('emp_id')->count();
-            $employeeCount = Employee::all()->count();
+            $employeeCount = Employee::whereNotNull('emp_id')->count();
+//            $employeeCount = Employee::all()->count();
 
             // Return the count in the response
             return $this->response(
