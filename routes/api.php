@@ -11,6 +11,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Middleware\CheckIpAddress;
 Use App\Http\Controllers\UserActivityController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\HolidayController;
 
 
 
@@ -66,15 +67,28 @@ Route::middleware([
     //Route::post('/create-attendance', [AttendanceController::class, 'createAttendance']);
     Route::get('/digital-attendance-list', [AttendanceController::class, 'getAttendanceFromDevice']);
     Route::get('/attendance-list', [AttendanceController::class, 'getAttendanceList']);
+    Route::get('/present-daily-list', [AttendanceController::class, 'getPresentAttendanceList']);
+    Route::get('/absent-daily-list', [AttendanceController::class, 'getAbsentAttendanceList']);
     Route::get('/employee-attendance-list', [AttendanceController::class, 'getSpecificEmployeeAttendance']);
     Route::post('/update-attendance', [AttendanceController::class, 'updateAttendanceByAdmin']);
     //Route::delete('/delete-attendance/{id}', [AttendanceController::class, 'deleteAttendance']);
     Route::get('/total-present', [AttendanceController::class, 'getTotalPresentAndAbsent']);
     Route::get('/in-out-time', [AttendanceController::class, 'inOutTime']);
     Route::get('/department-wise-attendance-list', [AttendanceController::class, 'departmentWiseAttendance']);
-    Route::get('/attendance/current-month/{id}', [AttendanceController::class, 'getCurrentMonthAttendance']);
+    Route::get('/self-monthly-attendance/{id}', [AttendanceController::class, 'getCurrentMonthAttendance']);
+    Route::get('/self-yearly-attendance/{id}', [AttendanceController::class, 'getYearlySelfAttendance']);
+
+    //Holidays API
+    Route::get('/holidays-list', [HolidayController::class, 'holidaysList']);
+    Route::post('/create-holiday', [HolidayController::class, 'createHoliday']);
+    Route::post('/edit-holiday/{id}', [HolidayController::class, 'updateHoliday']);
+    Route::get('/holiday-details/{id}', [HolidayController::class, 'getHolidayDetails']);
+    Route::delete('/delete-holiday/{id}', [HolidayController::class, 'deleteHoliday']);
 
 
+    //work Updates API
+    Route::get('/get-daily-work-update/{id}', [AttendanceController::class, 'getWorkUpdateByDate']);
+    Route::post('/update-daily-works/{id}', [AttendanceController::class, 'updateDailyWorksByDate']);
 
     // User_activity_log API
     Route::post('/log-user-activity', [UserActivityController::class, 'logActivity']);

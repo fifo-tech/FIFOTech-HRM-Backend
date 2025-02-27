@@ -73,12 +73,14 @@ public function getAttendanceList()
                     'device' => $attendance->device,
                     'late' => $attendance->late,
                     'location' => $attendance->location,
+                    'daily_work_updates' => $attendance->daily_work_updates,
                     // Embed employee data directly
                     'first_name' => $attendance->employee->first_name ?? null,
                     'last_name' => $attendance->employee->last_name ?? null,
                     'email' => $attendance->employee->email ?? null,
                     'phone_num' => $attendance->employee->phone_num ?? null,
                     'emp_id' => $attendance->employee->emp_id ?? null,
+
                     // Include profile photo path
                     'image' => $attendance->employee->user->profile_photo_path
                         ? url('storage/' . $attendance->employee->user->profile_photo_path) : null,
@@ -174,6 +176,144 @@ public function getAttendanceList()
 //        }
 //    }
 
+    function getPresentAttendanceList()
+    {
+        try {
+            // Get today's date
+            $date = now()->format('Y-m-d');
+
+            // Fetch attendance records for today's date where status is 'present'
+            $attendances = Attendance::with([
+                'employee' => function ($query) {
+                    $query->select('id', 'user_id', 'first_name', 'last_name', 'email', 'phone_num', 'emp_id')
+                        ->with(['user' => function ($userQuery) {
+                            $userQuery->select('id', 'profile_photo_path');
+                        }]);
+                }
+            ])
+                ->where('date', $date)
+                ->where('status', 'present') // Filter only present employees
+                ->get();
+
+            // Customize the response structure
+            $customizedResponse = $attendances->map(function ($attendance) {
+                return [
+                    'id' => $attendance->id,
+                    'employee_id' => $attendance->employee_id,
+                    'date' => $attendance->date,
+                    'status' => $attendance->status,
+                    'clock_in' => $attendance->clock_in,
+                    'clock_in_reason' => $attendance->clock_in_reason,
+                    'clock_out' => $attendance->clock_out,
+                    'clock_out_reason' => $attendance->clock_out_reason,
+                    'early_leaving' => $attendance->early_leaving,
+                    'total_work_hour' => $attendance->total_work_hour,
+                    'ip_address' => $attendance->ip_address,
+                    'device' => $attendance->device,
+                    'late' => $attendance->late,
+                    'location' => $attendance->location,
+                    'daily_work_updates' => $attendance->daily_work_updates,
+                    // Embed employee data directly
+                    'first_name' => $attendance->employee->first_name ?? null,
+                    'last_name' => $attendance->employee->last_name ?? null,
+                    'email' => $attendance->employee->email ?? null,
+                    'phone_num' => $attendance->employee->phone_num ?? null,
+                    'emp_id' => $attendance->employee->emp_id ?? null,
+
+                    // Include profile photo path
+                    'image' => $attendance->employee->user->profile_photo_path
+                        ? url('storage/' . $attendance->employee->user->profile_photo_path) : null,
+                ];
+            });
+
+            // Return success response with the customized data
+            return $this->response(
+                true,
+                'Present employees attendance records fetched successfully',
+                $customizedResponse,
+                200
+            );
+        } catch (\Exception $e) {
+            // Handle any exceptions
+            return $this->response(
+                false,
+                'Something went wrong while fetching present employee attendance',
+                $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
+    function getAbsentAttendanceList()
+    {
+        try {
+            // Get today's date
+            $date = now()->format('Y-m-d');
+
+            // Fetch attendance records for today's date where status is 'absent'
+            $attendances = Attendance::with([
+                'employee' => function ($query) {
+                    $query->select('id', 'user_id', 'first_name', 'last_name', 'email', 'phone_num', 'emp_id')
+                        ->with(['user' => function ($userQuery) {
+                            $userQuery->select('id', 'profile_photo_path');
+                        }]);
+                }
+            ])
+                ->where('date', $date)
+                ->where('status', 'absent') // Filter only absent employees
+                ->get();
+
+            // Customize the response structure
+            $customizedResponse = $attendances->map(function ($attendance) {
+                return [
+                    'id' => $attendance->id,
+                    'employee_id' => $attendance->employee_id,
+                    'date' => $attendance->date,
+                    'status' => $attendance->status,
+                    'clock_in' => $attendance->clock_in,
+                    'clock_in_reason' => $attendance->clock_in_reason,
+                    'clock_out' => $attendance->clock_out,
+                    'clock_out_reason' => $attendance->clock_out_reason,
+                    'early_leaving' => $attendance->early_leaving,
+                    'total_work_hour' => $attendance->total_work_hour,
+                    'ip_address' => $attendance->ip_address,
+                    'device' => $attendance->device,
+                    'late' => $attendance->late,
+                    'location' => $attendance->location,
+                    'daily_work_updates' => $attendance->daily_work_updates,
+                    // Embed employee data directly
+                    'first_name' => $attendance->employee->first_name ?? null,
+                    'last_name' => $attendance->employee->last_name ?? null,
+                    'email' => $attendance->employee->email ?? null,
+                    'phone_num' => $attendance->employee->phone_num ?? null,
+                    'emp_id' => $attendance->employee->emp_id ?? null,
+
+                    // Include profile photo path
+                    'image' => $attendance->employee->user->profile_photo_path
+                        ? url('storage/' . $attendance->employee->user->profile_photo_path) : null,
+                ];
+            });
+
+            // Return success response with the customized data
+            return $this->response(
+                true,
+                'Absent employees attendance records fetched successfully',
+                $customizedResponse,
+                200
+            );
+        } catch (\Exception $e) {
+            // Handle any exceptions
+            return $this->response(
+                false,
+                'Something went wrong while fetching absent employee attendance',
+                $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
 
 
     // Update Attendance by Admin
@@ -265,15 +405,32 @@ public function getAttendanceList()
             // Get today's date
             $today = Carbon::today();
            // echo print_r($today);exit;
+
             // Get the total number of present employees today
-            $totalPresent = Attendance::where('status', 'Present',)
-                ->whereDate('date', $today)
+//            $totalPresent = Attendance::where('status', 'Present',)
+//                ->whereDate('date', $today)
+//                ->count();
+
+            // Get the total present employees who have a non-null emp_id
+            $totalPresent = Attendance::join('employees', 'attendances.employee_id', '=', 'employees.id')
+                ->where('attendances.status', 'Present')
+                ->whereDate('attendances.date', $today) // Ensures we only count today's attendance
+                ->whereNotNull('employees.emp_id') // Ensure emp_id is not null
                 ->count();
 
+
             // Get the total number of absent employees today
-            $totalAbsent = Attendance::where('status', 'Absent',)
-                ->whereDate('date', $today)
+//            $totalAbsent = Attendance::where('status', 'Absent',)
+//                ->whereDate('date', $today)
+//                ->count();
+
+
+            $totalAbsent = Attendance::join('employees', 'attendances.employee_id', '=', 'employees.id')
+                ->where('attendances.status', 'Absent')
+                ->whereDate('attendances.date', $today) // Ensures we only count today's attendance
+                ->whereNotNull('employees.emp_id') // Ensure emp_id is not null
                 ->count();
+
 
             // Return the response
             return $this->response(true, 'Attendance data fetched successfully', [
@@ -460,6 +617,7 @@ public function getAttendanceList()
                     'clock_out_reason' => $attendance->clock_out_reason,
                     'early_leaving' => $attendance->early_leaving,
                     'total_work_hour' => $attendance->total_work_hour,
+                    'daily_work_updates' => $attendance->daily_work_updates,
                     'ip_address' => $attendance->ip_address,
                     'device' => $attendance->device,
                     'late' => $attendance->late,
@@ -640,6 +798,90 @@ public function getAttendanceList()
                 'total_late' => $summary->total_late ?? 0,
             ],
         ], 200);
+    }
+    public function getYearlySelfAttendance($employee_id)
+    {
+        $year = date('Y');
+
+        $summary = Attendance::where('employee_id', $employee_id)
+            ->whereYear('date', $year)   // Filtering only the data for the current year
+            ->selectRaw("
+            COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
+            COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
+            COUNT(CASE WHEN late IS NOT NULL THEN 1 END) as total_late
+        ")
+            ->first();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Yearly attendance summary fetched successfully',
+            'data' => [
+                'total_present' => $summary->total_present ?? 0,
+                'total_absent' => $summary->total_absent ?? 0,
+                'total_late' => $summary->total_late ?? 0,
+            ],
+        ], 200);
+    }
+
+
+
+    // Get all work updates up to today
+//    public function getAllDailyWorkUpdates ()
+//    {
+//        $today = Carbon::now()->format('Y-m-d');
+//        $updates = Attendance::whereDate('date', '<=', $today)->orderBy('date', 'asc')->get();
+//        return response()->json($updates);
+//    }
+
+    // Update daily work updates for a specific day
+    public function updateDailyWorksByDate(Request $request, $id)
+    {
+        $date = $request->input('date');
+        $today = Carbon::now()->format('Y-m-d');
+
+        if ($date > $today) {
+            return response()->json(['message' => 'Cannot update future dates'], 403);
+        }
+
+        // Find attendance for the given employee and date
+        $attendance = Attendance::where('date', $date)
+            ->where('employee_id', $id) // Use employee ID from route
+            ->first();
+
+        if (!$attendance) {
+            return response()->json(['message' => 'No records found for this employee on this date'], 404);
+        }
+
+        // Check if the status is "Present" before allowing updates
+        if ($attendance->status !== 'Present') {
+            return response()->json(['message' => 'Work updates can only be made for Present employees only'], 403);
+        }
+
+        // Check if an update has already been made
+        if (!empty($attendance->daily_work_updates)) {
+            return response()->json(['message' => 'This update has already been made and cannot be modified'], 403);
+        }
+
+        // Save the new work update
+        $attendance->daily_work_updates = $request->input('daily_work_updates');
+        $attendance->save();
+
+        return response()->json(['message' => 'Work update saved successfully']);
+    }
+
+    public function getWorkUpdateByDate(Request $request, $id)
+    {
+        $date = $request->input('date');
+
+        $attendance = Attendance::where('date', $date)
+            ->where('employee_id', $id)
+            ->first();
+
+        if (!$attendance) {
+            return response()->json(['message' => 'No records found for this date'], 404);
+        }
+
+        return response()->json($attendance);
     }
 
 
