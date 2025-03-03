@@ -66,6 +66,7 @@ Route::middleware([
     // Attendance API
     //Route::post('/create-attendance', [AttendanceController::class, 'createAttendance']);
     Route::get('/digital-attendance-list', [AttendanceController::class, 'getAttendanceFromDevice']);
+    Route::get('/fetch-attendance-logs', [AttendanceController::class, 'fetchAttendanceLogs']);
     Route::get('/attendance-list', [AttendanceController::class, 'getAttendanceList']);
     Route::get('/present-daily-list', [AttendanceController::class, 'getPresentAttendanceList']);
     Route::get('/absent-daily-list', [AttendanceController::class, 'getAbsentAttendanceList']);

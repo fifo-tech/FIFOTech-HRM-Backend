@@ -35,7 +35,14 @@ return Application::configure(basePath: dirname(__DIR__))
 
     ->withSchedule(function (Schedule $schedule) {
         // Add your scheduled commands here
-        $schedule->command('attendance:create-daily')->timezone('Asia/Dhaka')->dailyAt('00:00'); // Schedule to run at midnight
+        $schedule->command('attendance:create-daily')
+            ->timezone('Asia/Dhaka')
+            ->dailyAt('00:00'); // Schedule to run at midnight
+
+        // New: Fetch attendance logs from biometric device every minute
+        $schedule->command('app:fetch-attendance-logs')
+            ->timezone('Asia/Dhaka')
+            ->everyMinute(); // Runs every minute
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

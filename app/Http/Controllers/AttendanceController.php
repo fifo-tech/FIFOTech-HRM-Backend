@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Employee;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Http;
+
 //Use App\Libraries\ZKLibrary\ZKLibrary;
 
 
@@ -37,8 +39,137 @@ class AttendanceController extends Controller
 //    }
 
 
+    /**
+     * Fetch logs from biometric API and update database.
+     */
+    public function fetchAttendanceLogs()
+    {
+        // API URL
+        $apiUrl = 'http://192.168.200.170:8000/api/logs';
 
-public function getAttendanceList()
+        // Fetch data from API
+        $response = Http::get($apiUrl);
+
+        if ($response->successful()) {
+            $data = $response->json(); // Parse JSON data
+
+            if (!isset($data['logs'])) {
+                return response()->json(['message' => 'Invalid API response format'], 400);
+            }
+
+            // Iterate over the logs and group them by date
+            $attendanceRecords = [];
+            foreach ($data['logs'] as $log) {
+                // Extract user_id (e.g., 267) and compare with emp_id's last 3 digits
+                $user_id = $log['user_id'];
+
+                // Get the employee record by comparing user_id with last 3 digits of emp_id
+                $employee = Employee::whereRaw('RIGHT(emp_id, 3) = ?', [$user_id])->first();
+
+                if ($employee) {
+                    // Store log timestamp for further processing, grouped by date
+                    $logDate = substr($log['timestamp'], 0, 10); // Extract the date part from timestamp (YYYY-MM-DD)
+
+                    if (!isset($attendanceRecords[$employee->id][$logDate])) {
+                        $attendanceRecords[$employee->id][$logDate] = [];
+                    }
+                    $attendanceRecords[$employee->id][$logDate][] = $log['timestamp'];
+                }
+            }
+// Now loop through each employee and each date, and update clock_in and clock_out times
+            foreach ($attendanceRecords as $employee_id => $dates) {
+                foreach ($dates as $date => $timestamps) {
+                    // Sort timestamps in ascending order
+                    sort($timestamps);
+
+                    // Assign clock_in and clock_out based on timestamp count
+                    if (count($timestamps) === 1) {
+                        // If only one timestamp, assign it to both clock_in and clock_out
+                        $clock_in = $timestamps[0];
+                        $clock_out = null;
+                    } else {
+                        // If multiple timestamps, assign first as clock_in and last as clock_out
+                        $clock_in = $timestamps[0];
+                        $clock_out = $timestamps[count($timestamps) - 1];
+                    }
+                    // Calculate late time and early leaving time
+                    $late = $this->calculateLateTime($clock_in, $date);
+                    $early_leaving = $this->calculateEarlyLeavingTime($clock_out, $date);
+
+                    // Get the attendance record for the employee and date
+                    $attendance = Attendance::where('employee_id', $employee_id)
+                        ->where('date', $date)
+                        ->first();
+
+                    // If attendance does not exist, create a new one
+                    if (!$attendance) {
+                        $attendance = new Attendance();
+                        $attendance->employee_id = $employee_id;
+                        $attendance->date = $date; // Use the specific date from the logs
+                    }
+
+                    // Update the attendance details
+                    $attendance->clock_in = $clock_in;
+                    $attendance->clock_out = $clock_out;
+                    $attendance->status = 'Present'; // Assuming present by default, you can customize
+                    $attendance->late = $late; // Save the late time
+                    $attendance->early_leaving = $early_leaving; // Save the early leaving time
+                    $attendance->save();
+                }
+            }
+
+            return response()->json(['message' => 'Attendance logs updated successfully!'], 200);
+        } else {
+            return response()->json(['message' => 'Failed to fetch attendance logs'], 500);
+        }
+    }
+
+    /**
+     * Calculate the late time based on clock_in and office start time (9:00 AM).
+     */
+    private function calculateLateTime($clock_in, $date)
+    {
+        // Office start time is 9:00 AM on the same date
+        $office_start_time = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' 09:00:00');
+
+        // Convert the clock_in time to Carbon instance
+        $clock_in_time = Carbon::parse($clock_in);
+
+        // Check if the employee is late
+        if ($clock_in_time->gt($office_start_time)) {
+            // Calculate late time (difference between clock_in and office_start_time)
+            $late = $clock_in_time->diff($office_start_time);
+            return $late->format('%H:%I:%S'); // Return the late time in HH:MM:SS format
+        }
+
+        // If no late arrival, return null
+        return null;
+    }
+
+    /**
+     * Calculate the early leaving time based on clock_out and office end time (6:00 PM).
+     */
+    private function calculateEarlyLeavingTime($clock_out, $date)
+    {
+        // Office end time is 6:00 PM on the same date
+        $office_end_time = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' 18:00:00');
+
+        // Convert the clock_out time to Carbon instance
+        $clock_out_time = Carbon::parse($clock_out);
+
+        // Check if the employee left early
+        if ($clock_out_time->lt($office_end_time)) {
+            // Calculate early leaving time (difference between clock_out and office_end_time)
+            $early_leaving = $clock_out_time->diff($office_end_time);
+            return $early_leaving->format('%H:%I:%S'); // Return the early leaving time in HH:MM:SS format
+        }
+
+        // If the employee didn't leave early, return null
+        return null;
+    }
+
+
+    public function getAttendanceList()
     {
         try {
             // Get today's date
@@ -368,17 +499,17 @@ public function getAttendanceList()
             // Calculate late time (if applicable)
             $late = $clockIn && $clockIn->gt($officeStartTime)
                 ? $officeStartTime->diff($clockIn)->format('%H:%I') // Calculate the difference between office start and clock-in time
-                : '00:00'; // Default to '00:00' if the employee is not late
+                : null; // Default to '00:00' if the employee is not late
 
             // Calculate early leaving time (if applicable)
             $earlyLeaving = $clockOut && $clockOut->lt($officeEndTime)
                 ? $officeEndTime->diff($clockOut)->format('%H:%I') // Calculate the difference between clock-out and office end time
-                : '00:00'; // Default to '00:00' if the employee didn't leave early
+                : null; // Default to '00:00' if the employee didn't leave early
 
             // Calculate total work hours (if both clock-in and clock-out are provided)
             $totalWorkHour = $clockIn && $clockOut
                 ? $clockIn->diff($clockOut)->format('%H:%I') // Calculate the total work hours
-                : '00:00'; // Default to '00:00' if the employee didn't clock-in or clock-out
+                : null; // Default to '00:00' if the employee didn't clock-in or clock-out
 
             // Update the attendance record with the calculated values
             $attendance->update([
@@ -446,6 +577,67 @@ public function getAttendanceList()
 
 
     // CLock in API
+//    public function clockIn(Request $request)
+//    {
+//        try {
+//            // Validate the request
+//            $validatedData = $request->validate([
+//                'late_reason' => 'nullable|string|max:255',
+//            ]);
+//
+//            $user = auth()->user(); // Get the logged-in user
+//            $employee = $user->employee; // Get the employee record
+//
+//            if (!$employee) {
+//                return $this->response(false, 'Employee record not found', null, 404);
+//            }
+//
+//            $today = now()->format('Y-m-d'); // Get today's date
+//            $timezone = 'Asia/Dhaka';
+//
+//            // Check if an attendance record already exists for today
+//            $attendance = Attendance::where('employee_id', $employee->id)
+//                ->where('date', $today)
+//                ->first();
+//
+//            if ($attendance && $attendance->clock_in) {
+//                return $this->response(false, 'Clock In already recorded for today', null, 400);
+//            }
+//
+//            // Get the current time in 12-hour AM/PM format with hours, minutes, and seconds
+//            $clockInTime = now()->setTimezone($timezone)->format('h:i:s A'); // Example: "09:15:30 AM"
+//
+//            // Get current time in 24-hour format for database storage
+//            $clockInTime24 = now()->setTimezone($timezone)->format('H:i:s'); // Example: "09:15:30"
+//
+//            $officeStartTime = \Carbon\Carbon::createFromTime(9, 0, 0, $timezone); // 09:00 AM
+//
+//            // Calculate late time
+//            $clockInCarbon = \Carbon\Carbon::createFromFormat('h:i:s A', $clockInTime, $timezone);
+//            $late = $clockInCarbon->gt($officeStartTime)
+//                ? $officeStartTime->diff($clockInCarbon)->format('%H:%I:%S') // Include seconds
+//                : null; // Include seconds if no late time
+//
+//            // Create or update attendance record
+//            $attendance = Attendance::updateOrCreate(
+//                [
+//                    'employee_id' => $employee->id,
+//                    'date' => $today,
+//                ],
+//                [
+//                    'clock_in' => $clockInTime24, // Save in 24-hour format
+//                    'clock_in_12hr' => $clockInTime, // Save in 12-hour format with AM/PM
+//                    'late' => $late,
+//                    'clock_in_reason' => $validatedData['late_reason'] ?? null,
+//                    'status' => 'Present',
+//                ]
+//            );
+//
+//            return $this->response(true, 'Clock In recorded successfully', $attendance, 200);
+//        } catch (\Exception $e) {
+//            return $this->response(false, 'Something went wrong while clocking in', $e->getMessage(), 500);
+//        }
+//    }
     public function clockIn(Request $request)
     {
         try {
@@ -469,44 +661,45 @@ public function getAttendanceList()
                 ->where('date', $today)
                 ->first();
 
-            if ($attendance && $attendance->clock_in) {
-                return $this->response(false, 'Clock In already recorded for today', null, 400);
+            if ($attendance) {
+                if ($attendance->clock_in) {
+                    // If Clock In already recorded, update only late reason
+                    $attendance->update([
+                        'clock_in_reason' => $validatedData['late_reason'] ?? $attendance->clock_in_reason
+                    ]);
+                    return $this->response(true, 'Late reason updated successfully', $attendance, 200);
+                } else {
+                    // If Clock In hasn't been recorded yet, perform the full clock-in logic
+                    $clockInTime = now()->setTimezone($timezone)->format('h:i:s A');
+                    $clockInTime24 = now()->setTimezone($timezone)->format('H:i:s');
+
+                    $officeStartTime = \Carbon\Carbon::createFromTime(9, 0, 0, $timezone);
+
+                    // Calculate late time
+                    $clockInCarbon = \Carbon\Carbon::createFromFormat('h:i:s A', $clockInTime, $timezone);
+                    $late = $clockInCarbon->gt($officeStartTime)
+                        ? $officeStartTime->diff($clockInCarbon)->format('%H:%I:%S')
+                        : null;
+
+                    // Create or update attendance record
+                    $attendance->update([
+                        'clock_in' => $clockInTime24,
+                        'clock_in_12hr' => $clockInTime,
+                        'late' => $late,
+                        'clock_in_reason' => $validatedData['late_reason'] ?? null,
+                        'status' => 'Present',
+                    ]);
+
+                    return $this->response(true, 'Clock In recorded successfully', $attendance, 200);
+                }
+            } else {
+                return $this->response(false, 'No attendance record found for today', null, 404);
             }
-
-            // Get the current time in 12-hour AM/PM format with hours, minutes, and seconds
-            $clockInTime = now()->setTimezone($timezone)->format('h:i:s A'); // Example: "09:15:30 AM"
-
-            // Get current time in 24-hour format for database storage
-            $clockInTime24 = now()->setTimezone($timezone)->format('H:i:s'); // Example: "09:15:30"
-
-            $officeStartTime = \Carbon\Carbon::createFromTime(9, 0, 0, $timezone); // 09:00 AM
-
-            // Calculate late time
-            $clockInCarbon = \Carbon\Carbon::createFromFormat('h:i:s A', $clockInTime, $timezone);
-            $late = $clockInCarbon->gt($officeStartTime)
-                ? $officeStartTime->diff($clockInCarbon)->format('%H:%I:%S') // Include seconds
-                : '00:00:00'; // Include seconds if no late time
-
-            // Create or update attendance record
-            $attendance = Attendance::updateOrCreate(
-                [
-                    'employee_id' => $employee->id,
-                    'date' => $today,
-                ],
-                [
-                    'clock_in' => $clockInTime24, // Save in 24-hour format
-                    'clock_in_12hr' => $clockInTime, // Save in 12-hour format with AM/PM
-                    'late' => $late,
-                    'clock_in_reason' => $validatedData['late_reason'] ?? null,
-                    'status' => 'Present',
-                ]
-            );
-
-            return $this->response(true, 'Clock In recorded successfully', $attendance, 200);
         } catch (\Exception $e) {
             return $this->response(false, 'Something went wrong while clocking in', $e->getMessage(), 500);
         }
     }
+
 
 
     // Clock Out
@@ -538,9 +731,9 @@ public function getAttendanceList()
                 return $this->response(false, 'Clock In must be recorded first', null, 400);
             }
 
-            if ($attendance->clock_out) {
-                return $this->response(false, 'Clock Out already recorded for today', null, 400);
-            }
+//            if ($attendance->clock_out) {
+//                return $this->response(false, 'Clock Out already recorded for today', null, 400);
+//            }
 
             // Get current time in 12-hour AM/PM format with hour, minute, and second
             $clockOutTime = now()->setTimezone($timezone)->format('h:i:s A'); // Example: "12:17:00 PM"
@@ -561,7 +754,7 @@ public function getAttendanceList()
             // Calculate early leaving time
             $earlyLeaving = $clockOutCarbon->lt($officeEndTime)
                 ? $officeEndTime->diff($clockOutCarbon)->format('%H:%I:%S') // Include seconds
-                : '00:00:00'; // Include seconds if early leaving
+                : null;
 
             // Update the attendance record with the correct time formats
             $attendance->update([
@@ -785,7 +978,11 @@ public function getAttendanceList()
             ->selectRaw("
             COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
             COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
-            COUNT(CASE WHEN late IS NOT NULL THEN 1 END) as total_late
+            COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
+
+
+
+
         ")
             ->first();
 
@@ -808,7 +1005,11 @@ public function getAttendanceList()
             ->selectRaw("
             COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
             COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
-            COUNT(CASE WHEN late IS NOT NULL THEN 1 END) as total_late
+
+            COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
+
+
+
         ")
             ->first();
 
