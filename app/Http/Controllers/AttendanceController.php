@@ -151,22 +151,27 @@ class AttendanceController extends Controller
      */
     private function calculateEarlyLeavingTime($clock_out, $date)
     {
-        // Office end time is 6:00 PM on the same date
+        // If clock_out is null, no need to calculate early leaving time
+        if (!$clock_out) {
+            return null;
+        }
+
+        // Office end time is 6:00 PM on the given date
         $office_end_time = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' 18:00:00');
 
-        // Convert the clock_out time to Carbon instance
+        // Convert clock_out to a Carbon instance
         $clock_out_time = Carbon::parse($clock_out);
 
         // Check if the employee left early
         if ($clock_out_time->lt($office_end_time)) {
-            // Calculate early leaving time (difference between clock_out and office_end_time)
+            // Calculate the early leaving time (difference between clock_out and office_end_time)
             $early_leaving = $clock_out_time->diff($office_end_time);
-            return $early_leaving->format('%H:%I:%S'); // Return the early leaving time in HH:MM:SS format
+            return $early_leaving->format('%H:%I:%S'); // Return time in HH:MM:SS format
         }
 
-        // If the employee didn't leave early, return null
-        return null;
+        return null; // If the employee didn't leave early, return null
     }
+
 
 
     public function getAttendanceList()
