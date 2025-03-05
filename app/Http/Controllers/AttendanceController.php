@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Employee;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 //Use App\Libraries\ZKLibrary\ZKLibrary;
@@ -39,9 +40,142 @@ class AttendanceController extends Controller
 //    }
 
 
-    /**
-     * Fetch logs from biometric API and update database.
-     */
+//    /**
+//     * Fetch logs from biometric API and update database.
+//     */
+//    public function fetchAttendanceLogs()
+//    {
+//        // API URL
+//        $apiUrl = 'http://192.168.200.170:8000/api/logs';
+//
+//        // Fetch data from API
+//        $response = Http::get($apiUrl);
+//
+//        if ($response->successful()) {
+//            $data = $response->json(); // Parse JSON data
+//
+//            if (!isset($data['logs'])) {
+//                return response()->json(['message' => 'Invalid API response format'], 400);
+//            }
+//
+//            // Iterate over the logs and group them by date
+//            $attendanceRecords = [];
+//            foreach ($data['logs'] as $log) {
+//                // Extract user_id (e.g., 267) and compare with emp_id's last 3 digits
+//                $user_id = $log['user_id'];
+//
+//                // Get the employee record by comparing user_id with last 3 digits of emp_id
+//                $employee = Employee::whereRaw('RIGHT(emp_id, 3) = ?', [$user_id])->first();
+//
+//                if ($employee) {
+//                    // Store log timestamp for further processing, grouped by date
+//                    $logDate = substr($log['timestamp'], 0, 10); // Extract the date part from timestamp (YYYY-MM-DD)
+//
+//                    if (!isset($attendanceRecords[$employee->id][$logDate])) {
+//                        $attendanceRecords[$employee->id][$logDate] = [];
+//                    }
+//                    $attendanceRecords[$employee->id][$logDate][] = $log['timestamp'];
+//                }
+//            }
+//// Now loop through each employee and each date, and update clock_in and clock_out times
+//            foreach ($attendanceRecords as $employee_id => $dates) {
+//                foreach ($dates as $date => $timestamps) {
+//                    // Sort timestamps in ascending order
+//                    sort($timestamps);
+//
+//                    // Assign clock_in and clock_out based on timestamp count
+//                    if (count($timestamps) === 1) {
+//                        // If only one timestamp, assign it to both clock_in and clock_out
+//                        $clock_in = $timestamps[0];
+//                        $clock_out = null;
+//                    } else {
+//                        // If multiple timestamps, assign first as clock_in and last as clock_out
+//                        $clock_in = $timestamps[0];
+//                        $clock_out = $timestamps[count($timestamps) - 1];
+//                    }
+//                    // Calculate late time and early leaving time
+//                    $late = $this->calculateLateTime($clock_in, $date);
+//                    $early_leaving = $this->calculateEarlyLeavingTime($clock_out, $date);
+//
+//                    // Get the attendance record for the employee and date
+//                    $attendance = Attendance::where('employee_id', $employee_id)
+//                        ->where('date', $date)
+//                        ->first();
+//
+//                    // If attendance does not exist, create a new one
+//                    if (!$attendance) {
+//                        $attendance = new Attendance();
+//                        $attendance->employee_id = $employee_id;
+//                        $attendance->date = $date; // Use the specific date from the logs
+//                    }
+//
+//                    // Update the attendance details
+//                    $attendance->clock_in = $clock_in;
+//                    $attendance->clock_out = $clock_out;
+//                    $attendance->status = 'Present'; // Assuming present by default, you can customize
+//                    $attendance->late = $late; // Save the late time
+//                    $attendance->early_leaving = $early_leaving; // Save the early leaving time
+//                    $attendance->save();
+//                }
+//            }
+//
+//            return response()->json(['message' => 'Attendance logs updated successfully!'], 200);
+//        } else {
+//            return response()->json(['message' => 'Failed to fetch attendance logs'], 500);
+//        }
+//    }
+//
+//    /**
+//     * Calculate the late time based on clock_in and office start time (9:00 AM).
+//     */
+//    private function calculateLateTime($clock_in, $date)
+//    {
+//        // Office start time is 9:00 AM on the same date
+//        $office_start_time = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' 09:00:00');
+//
+//        // Convert the clock_in time to Carbon instance
+//        $clock_in_time = Carbon::parse($clock_in);
+//
+//        // Check if the employee is late
+//        if ($clock_in_time->gt($office_start_time)) {
+//            // Calculate late time (difference between clock_in and office_start_time)
+//            $late = $clock_in_time->diff($office_start_time);
+//            return $late->format('%H:%I:%S'); // Return the late time in HH:MM:SS format
+//        }
+//
+//        // If no late arrival, return null
+//        return null;
+//    }
+//
+//    /**
+//     * Calculate the early leaving time based on clock_out and office end time (6:00 PM).
+//     */
+//    private function calculateEarlyLeavingTime($clock_out, $date)
+//    {
+//        // If clock_out is null, no need to calculate early leaving time
+//        if (!$clock_out) {
+//            return null;
+//        }
+//
+//        // Office end time is 6:00 PM on the given date
+//        $office_end_time = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' 18:00:00');
+//
+//        // Convert clock_out to a Carbon instance
+//        $clock_out_time = Carbon::parse($clock_out);
+//
+//        // Check if the employee left early
+//        if ($clock_out_time->lt($office_end_time)) {
+//            // Calculate the early leaving time (difference between clock_out and office_end_time)
+//            $early_leaving = $clock_out_time->diff($office_end_time);
+//            return $early_leaving->format('%H:%I:%S'); // Return time in HH:MM:SS format
+//        }
+//
+//        return null; // If the employee didn't leave early, return null
+//    }
+
+
+
+
     public function fetchAttendanceLogs()
     {
         // API URL
@@ -60,61 +194,57 @@ class AttendanceController extends Controller
             // Iterate over the logs and group them by date
             $attendanceRecords = [];
             foreach ($data['logs'] as $log) {
-                // Extract user_id (e.g., 267) and compare with emp_id's last 3 digits
-                $user_id = $log['user_id'];
+                $user_id = ltrim($log['user_id'], '0'); // Remove leading zeros from user_id
 
-                // Get the employee record by comparing user_id with last 3 digits of emp_id
-                $employee = Employee::whereRaw('RIGHT(emp_id, 3) = ?', [$user_id])->first();
+                // Get employee whose emp_id last numeric part matches user_id
+                $employees = Employee::all();
+                $matchedEmployee = null;
 
-                if ($employee) {
-                    // Store log timestamp for further processing, grouped by date
+                foreach ($employees as $employee) {
+                    if (preg_match('/(\d+)$/', $employee->emp_id, $matches)) {
+                        $emp_last_part = ltrim($matches[1], '0'); // Remove leading zeros
+
+                        if ($emp_last_part === $user_id) {
+                            $matchedEmployee = $employee;
+                            break;
+                        }
+                    }
+                }
+
+                if ($matchedEmployee) {
                     $logDate = substr($log['timestamp'], 0, 10); // Extract the date part from timestamp (YYYY-MM-DD)
 
-                    if (!isset($attendanceRecords[$employee->id][$logDate])) {
-                        $attendanceRecords[$employee->id][$logDate] = [];
+                    if (!isset($attendanceRecords[$matchedEmployee->id][$logDate])) {
+                        $attendanceRecords[$matchedEmployee->id][$logDate] = [];
                     }
-                    $attendanceRecords[$employee->id][$logDate][] = $log['timestamp'];
+
+                    // Convert timestamp to MySQL DATETIME format
+                    $formattedTimestamp = Carbon::parse($log['timestamp'])->format('Y-m-d H:i:s');
+
+                    $attendanceRecords[$matchedEmployee->id][$logDate][] = $formattedTimestamp;
                 }
             }
-// Now loop through each employee and each date, and update clock_in and clock_out times
+
+            // Process attendance records
             foreach ($attendanceRecords as $employee_id => $dates) {
                 foreach ($dates as $date => $timestamps) {
-                    // Sort timestamps in ascending order
                     sort($timestamps);
+                    $clock_in = $timestamps[0];
+                    $clock_out = count($timestamps) > 1 ? $timestamps[count($timestamps) - 1] : null;
 
-                    // Assign clock_in and clock_out based on timestamp count
-                    if (count($timestamps) === 1) {
-                        // If only one timestamp, assign it to both clock_in and clock_out
-                        $clock_in = $timestamps[0];
-                        $clock_out = null;
-                    } else {
-                        // If multiple timestamps, assign first as clock_in and last as clock_out
-                        $clock_in = $timestamps[0];
-                        $clock_out = $timestamps[count($timestamps) - 1];
-                    }
-                    // Calculate late time and early leaving time
                     $late = $this->calculateLateTime($clock_in, $date);
                     $early_leaving = $this->calculateEarlyLeavingTime($clock_out, $date);
 
-                    // Get the attendance record for the employee and date
-                    $attendance = Attendance::where('employee_id', $employee_id)
-                        ->where('date', $date)
-                        ->first();
-
-                    // If attendance does not exist, create a new one
-                    if (!$attendance) {
-                        $attendance = new Attendance();
-                        $attendance->employee_id = $employee_id;
-                        $attendance->date = $date; // Use the specific date from the logs
-                    }
-
-                    // Update the attendance details
-                    $attendance->clock_in = $clock_in;
-                    $attendance->clock_out = $clock_out;
-                    $attendance->status = 'Present'; // Assuming present by default, you can customize
-                    $attendance->late = $late; // Save the late time
-                    $attendance->early_leaving = $early_leaving; // Save the early leaving time
-                    $attendance->save();
+                    $attendance = Attendance::updateOrCreate(
+                        ['employee_id' => $employee_id, 'date' => $date],
+                        [
+                            'clock_in' => $clock_in,
+                            'clock_out' => $clock_out,
+                            'status' => 'Present',
+                            'late' => $late,
+                            'early_leaving' => $early_leaving
+                        ]
+                    );
                 }
             }
 
@@ -123,13 +253,9 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Failed to fetch attendance logs'], 500);
         }
     }
-
-    /**
-     * Calculate the late time based on clock_in and office start time (9:00 AM).
-     */
     private function calculateLateTime($clock_in, $date)
     {
-        // Office start time is 9:00 AM on the same date
+        // Office start time is 9:00 AM
         $office_start_time = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' 09:00:00');
 
         // Convert the clock_in time to Carbon instance
@@ -137,41 +263,35 @@ class AttendanceController extends Controller
 
         // Check if the employee is late
         if ($clock_in_time->gt($office_start_time)) {
-            // Calculate late time (difference between clock_in and office_start_time)
+            // Calculate late time
             $late = $clock_in_time->diff($office_start_time);
-            return $late->format('%H:%I:%S'); // Return the late time in HH:MM:SS format
+            return $late->format('%H:%I:%S');
         }
 
-        // If no late arrival, return null
         return null;
     }
-
-    /**
-     * Calculate the early leaving time based on clock_out and office end time (6:00 PM).
-     */
     private function calculateEarlyLeavingTime($clock_out, $date)
     {
-        // If clock_out is null, no need to calculate early leaving time
+        // If clock_out is null, return null
         if (!$clock_out) {
             return null;
         }
 
-        // Office end time is 6:00 PM on the given date
+        // Office end time is 6:00 PM
         $office_end_time = Carbon::createFromFormat('Y-m-d H:i:s', $date . ' 18:00:00');
 
-        // Convert clock_out to a Carbon instance
+        // Convert clock_out to Carbon instance
         $clock_out_time = Carbon::parse($clock_out);
 
         // Check if the employee left early
         if ($clock_out_time->lt($office_end_time)) {
-            // Calculate the early leaving time (difference between clock_out and office_end_time)
+            // Calculate the early leaving time
             $early_leaving = $clock_out_time->diff($office_end_time);
-            return $early_leaving->format('%H:%I:%S'); // Return time in HH:MM:SS format
+            return $early_leaving->format('%H:%I:%S');
         }
 
-        return null; // If the employee didn't leave early, return null
+        return null;
     }
-
 
 
     public function getAttendanceList()
@@ -972,11 +1092,63 @@ class AttendanceController extends Controller
     }
 
 
+//    public function getCurrentMonthAttendance($employee_id)
+//    {
+//        $year = date('Y');
+//        $month = date('m');
+//
+//        $summary = Attendance::where('employee_id', $employee_id)
+//            ->whereYear('date', $year)
+//            ->whereMonth('date', $month)
+//            ->selectRaw("
+//            COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
+//            COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
+//            COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
+//
+//
+//
+//
+//        ")
+//            ->first();
+//
+//        return response()->json([
+//            'success' => true,
+//            'message' => 'Current month attendance summary fetched successfully',
+//            'data' => [
+//                'total_present' => $summary->total_present ?? 0,
+//                'total_absent' => $summary->total_absent ?? 0,
+//                'total_late' => $summary->total_late ?? 0,
+//            ],
+//        ], 200);
+//    }
+
+
+
     public function getCurrentMonthAttendance($employee_id)
     {
         $year = date('Y');
         $month = date('m');
 
+        $startDate = Carbon::now()->startOfMonth();
+        $endDate = Carbon::now()->endOfMonth();
+
+        // Calculate Total Days in Month
+        $totalDays = $startDate->diffInDays($endDate) + 1;
+
+        // Calculate Total Fridays (Weekends)
+        $totalFridays = 0;
+        for ($date = clone $startDate; $date <= $endDate; $date->addDay()) {
+            if ($date->format('w') == 5) { // '5' means Friday in PHP (Sunday = 0)
+                $totalFridays++;
+            }
+        }
+
+        // Fetch Total Holidays
+        $totalHolidays = DB::table('holidays')
+            ->whereBetween('date', [$startDate, $endDate])
+            ->count();
+
+        // Fetch Employee Attendance Summary
         $summary = Attendance::where('employee_id', $employee_id)
             ->whereYear('date', $year)
             ->whereMonth('date', $month)
@@ -984,50 +1156,127 @@ class AttendanceController extends Controller
             COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
             COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
             COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
-
-
-
-
         ")
             ->first();
+
+        // Total Working Days (Excluding Fridays and Holidays)
+        $totalWorkingDays = (int)($totalDays - $totalFridays - $totalHolidays);
+
+        // Calculate Total Work on Holidays
+        $totalWorkOnHolidays = Attendance::where('employee_id', $employee_id)
+            ->whereIn('date', function ($query) use ($startDate, $endDate) {
+                $query->select('date')
+                    ->from('holidays')
+                    ->whereBetween('date', [$startDate, $endDate]);
+            })
+            ->where('status', 'Present')
+            ->count();
 
         return response()->json([
             'success' => true,
             'message' => 'Current month attendance summary fetched successfully',
             'data' => [
+                'total_working_days' => $totalWorkingDays,
                 'total_present' => $summary->total_present ?? 0,
                 'total_absent' => $summary->total_absent ?? 0,
                 'total_late' => $summary->total_late ?? 0,
+                'total_holidays' => $totalHolidays,
+                'total_work_on_holidays' => $totalWorkOnHolidays,
             ],
         ], 200);
     }
+
+
+//    public function getYearlySelfAttendance($employee_id)
+//    {
+//        $year = date('Y');
+//
+//        $summary = Attendance::where('employee_id', $employee_id)
+//            ->whereYear('date', $year)   // Filtering only the data for the current year
+//            ->selectRaw("
+//            COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
+//            COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
+//
+//            COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
+//
+//
+//
+//        ")
+//            ->first();
+//
+//        return response()->json([
+//            'success' => true,
+//            'message' => 'Yearly attendance summary fetched successfully',
+//            'data' => [
+//                'total_present' => $summary->total_present ?? 0,
+//                'total_absent' => $summary->total_absent ?? 0,
+//                'total_late' => $summary->total_late ?? 0,
+//            ],
+//        ], 200);
+//    }
+
+
+
+
     public function getYearlySelfAttendance($employee_id)
     {
         $year = date('Y');
+        $startDate = Carbon::createFromDate($year, 1, 1); // January 1st
+        $endDate = Carbon::createFromDate($year, 12, 31); // December 31st
 
+        // Calculate Total Days in Year
+        $totalDays = $startDate->diffInDays($endDate) + 1;
+
+        // Calculate Total Fridays in the Year
+        $totalFridays = 0;
+        for ($date = clone $startDate; $date <= $endDate; $date->addDay()) {
+            if ($date->format('w') == 5) { // '5' means Friday in PHP (Sunday = 0)
+                $totalFridays++;
+            }
+        }
+
+        // Fetch Total Holidays in the Year
+        $totalHolidays = DB::table('holidays')
+            ->whereBetween('date', [$startDate, $endDate])
+            ->count();
+
+        // Fetch Employee Attendance Summary
         $summary = Attendance::where('employee_id', $employee_id)
-            ->whereYear('date', $year)   // Filtering only the data for the current year
+            ->whereYear('date', $year)
             ->selectRaw("
             COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
             COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
-
             COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
-
-
-
         ")
             ->first();
+
+        // Total Working Days (Excluding Fridays and Holidays)
+        $totalWorkingDays = (int) ($totalDays - $totalFridays - $totalHolidays);
+
+        // Calculate Total Work on Holidays
+        $totalWorkOnHolidays = Attendance::where('employee_id', $employee_id)
+            ->whereIn('date', function ($query) use ($startDate, $endDate) {
+                $query->select('date')
+                    ->from('holidays')
+                    ->whereBetween('date', [$startDate, $endDate]);
+            })
+            ->where('status', 'Present')
+            ->count();
 
         return response()->json([
             'success' => true,
             'message' => 'Yearly attendance summary fetched successfully',
             'data' => [
+                'total_working_days' => $totalWorkingDays,
                 'total_present' => $summary->total_present ?? 0,
                 'total_absent' => $summary->total_absent ?? 0,
                 'total_late' => $summary->total_late ?? 0,
+                'total_holidays' => $totalHolidays,
+                'total_work_on_holidays' => $totalWorkOnHolidays,
             ],
         ], 200);
     }
+
 
 
 
