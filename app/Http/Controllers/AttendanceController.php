@@ -1038,7 +1038,7 @@ class AttendanceController extends Controller
             ])
                 ->where('date', $date)
                 ->whereNotNull('clock_in') // Only include employees who clocked in
-                ->whereNull('clock_out')   // Exclude employees who have clocked out
+//                ->whereNull('clock_out')   // Exclude employees who have clocked out
                 ->get();
 
             // Group attendance records by department
@@ -1124,7 +1124,77 @@ class AttendanceController extends Controller
 
 
 
-    public function getCurrentMonthAttendance($employee_id)
+
+
+
+//    public function getCurrentMonthAttendance($employee_id)
+//    {
+//        $year = date('Y');
+//        $month = date('m');
+//
+//        $startDate = Carbon::now()->startOfMonth();
+//        $endDate = Carbon::now()->endOfMonth();
+//
+//        // Calculate Total Days in Month
+//        $totalDays = $startDate->diffInDays($endDate) + 1;
+//
+//        // Calculate Total Fridays (Weekends)
+//        $totalFridays = 0;
+//        for ($date = clone $startDate; $date <= $endDate; $date->addDay()) {
+//            if ($date->format('w') == 5) { // '5' means Friday in PHP (Sunday = 0)
+//                $totalFridays++;
+//            }
+//        }
+//
+//        // Fetch Total Holidays
+//        $totalHolidays = DB::table('holidays')
+//            ->whereBetween('date', [$startDate, $endDate])
+//            ->count();
+//
+//        // Fetch Employee Attendance Summary
+//        $summary = Attendance::where('employee_id', $employee_id)
+//            ->whereYear('date', $year)
+//            ->whereMonth('date', $month)
+//            ->selectRaw("
+//            COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
+//            COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
+//            COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
+//        ")
+//            ->first();
+//
+//        // Total Working Days (Excluding Fridays and Holidays)
+//        $totalWorkingDays = (int)($totalDays - $totalFridays - $totalHolidays);
+//
+//        // Calculate Total Work on Holidays
+//        $totalWorkOnHolidays = Attendance::where('employee_id', $employee_id)
+//            ->whereIn('date', function ($query) use ($startDate, $endDate) {
+//                $query->select('date')
+//                    ->from('holidays')
+//                    ->whereBetween('date', [$startDate, $endDate]);
+//            })
+//            ->where('status', 'Present')
+//            ->count();
+//
+//        return response()->json([
+//            'success' => true,
+//            'message' => 'Current month attendance summary fetched successfully',
+//            'data' => [
+//                'total_working_days' => $totalWorkingDays,
+//                'total_present' => $summary->total_present ?? 0,
+//                'total_absent' => $summary->total_absent ?? 0,
+//                'total_late' => $summary->total_late ?? 0,
+//                'total_holidays' => $totalHolidays,
+//                'total_work_on_holidays' => $totalWorkOnHolidays,
+//            ],
+//        ], 200);
+//    }
+
+
+
+
+
+
+    public function getTotalCurrentMonthAttendance($employee_id)
     {
         $year = date('Y');
         $month = date('m');
@@ -1132,7 +1202,7 @@ class AttendanceController extends Controller
         $startDate = Carbon::now()->startOfMonth();
         $endDate = Carbon::now()->endOfMonth();
 
-        // Calculate Total Days in Month
+        // Calculate Total Days in the Month
         $totalDays = $startDate->diffInDays($endDate) + 1;
 
         // Calculate Total Fridays (Weekends)
@@ -1148,15 +1218,19 @@ class AttendanceController extends Controller
             ->whereBetween('date', [$startDate, $endDate])
             ->count();
 
-        // Fetch Employee Attendance Summary
+        // Fetch Employee Attendance Summary (Updated total_absent Calculation)
         $summary = Attendance::where('employee_id', $employee_id)
             ->whereYear('date', $year)
             ->whereMonth('date', $month)
             ->selectRaw("
             COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
-            COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
+            COUNT(CASE
+                WHEN status = 'Absent'
+                AND DATE_FORMAT(date, '%w') NOT IN (5)  -- Exclude Fridays (Friday = 5)
+                AND date NOT IN (SELECT date FROM holidays WHERE date BETWEEN ? AND ?)
+            THEN 1 END) as total_absent,
             COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
-        ")
+        ", [$startDate, $endDate])
             ->first();
 
         // Total Working Days (Excluding Fridays and Holidays)
@@ -1178,13 +1252,14 @@ class AttendanceController extends Controller
             'data' => [
                 'total_working_days' => $totalWorkingDays,
                 'total_present' => $summary->total_present ?? 0,
-                'total_absent' => $summary->total_absent ?? 0,
+                'total_absent' => $summary->total_absent ?? 0,  // Excluding Fridays & Holidays
                 'total_late' => $summary->total_late ?? 0,
                 'total_holidays' => $totalHolidays,
                 'total_work_on_holidays' => $totalWorkOnHolidays,
             ],
         ], 200);
     }
+
 
 
 //    public function getYearlySelfAttendance($employee_id)
@@ -1218,7 +1293,73 @@ class AttendanceController extends Controller
 
 
 
-    public function getYearlySelfAttendance($employee_id)
+//    public function getYearlySelfAttendance($employee_id)
+//    {
+//        $year = date('Y');
+//        $startDate = Carbon::createFromDate($year, 1, 1); // January 1st
+//        $endDate = Carbon::createFromDate($year, 12, 31); // December 31st
+//
+//        // Calculate Total Days in Year
+//        $totalDays = $startDate->diffInDays($endDate) + 1;
+//
+//        // Calculate Total Fridays in the Year
+//        $totalFridays = 0;
+//        for ($date = clone $startDate; $date <= $endDate; $date->addDay()) {
+//            if ($date->format('w') == 5) { // '5' means Friday in PHP (Sunday = 0)
+//                $totalFridays++;
+//            }
+//        }
+//
+//        // Fetch Total Holidays in the Year
+//        $totalHolidays = DB::table('holidays')
+//            ->whereBetween('date', [$startDate, $endDate])
+//            ->count();
+//
+//        // Fetch Employee Attendance Summary
+//        $summary = Attendance::where('employee_id', $employee_id)
+//            ->whereYear('date', $year)
+//            ->selectRaw("
+//            COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
+//            COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
+//            COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
+//        ")
+//            ->first();
+//
+//        // Total Working Days (Excluding Fridays and Holidays)
+//        $totalWorkingDays = (int) ($totalDays - $totalFridays - $totalHolidays);
+//
+//        // Calculate Total Work on Holidays
+//        $totalWorkOnHolidays = Attendance::where('employee_id', $employee_id)
+//            ->whereIn('date', function ($query) use ($startDate, $endDate) {
+//                $query->select('date')
+//                    ->from('holidays')
+//                    ->whereBetween('date', [$startDate, $endDate]);
+//            })
+//            ->where('status', 'Present')
+//            ->count();
+//
+//        return response()->json([
+//            'success' => true,
+//            'message' => 'Yearly attendance summary fetched successfully',
+//            'data' => [
+//                'total_working_days' => $totalWorkingDays,
+//                'total_present' => $summary->total_present ?? 0,
+//                'total_absent' => $summary->total_absent ?? 0,
+//                'total_late' => $summary->total_late ?? 0,
+//                'total_holidays' => $totalHolidays,
+//                'total_work_on_holidays' => $totalWorkOnHolidays,
+//            ],
+//        ], 200);
+//    }
+
+
+
+
+
+
+
+
+    public function getTotalYearlySelfAttendance($employee_id)
     {
         $year = date('Y');
         $startDate = Carbon::createFromDate($year, 1, 1); // January 1st
@@ -1240,18 +1381,22 @@ class AttendanceController extends Controller
             ->whereBetween('date', [$startDate, $endDate])
             ->count();
 
-        // Fetch Employee Attendance Summary
+        // Fetch Employee Attendance Summary (Updated total_absent Calculation)
         $summary = Attendance::where('employee_id', $employee_id)
             ->whereYear('date', $year)
             ->selectRaw("
             COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
-            COUNT(CASE WHEN status = 'Absent' THEN 1 END) as total_absent,
+            COUNT(CASE
+                WHEN status = 'Absent'
+                AND DATE_FORMAT(date, '%w') NOT IN (5)  -- Exclude Fridays (Friday = 5)
+                AND date NOT IN (SELECT date FROM holidays WHERE date BETWEEN ? AND ?)
+            THEN 1 END) as total_absent,
             COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
-        ")
+        ", [$startDate, $endDate])
             ->first();
 
         // Total Working Days (Excluding Fridays and Holidays)
-        $totalWorkingDays = (int) ($totalDays - $totalFridays - $totalHolidays);
+        $totalWorkingDays = (int)($totalDays - $totalFridays - $totalHolidays);
 
         // Calculate Total Work on Holidays
         $totalWorkOnHolidays = Attendance::where('employee_id', $employee_id)
@@ -1269,13 +1414,14 @@ class AttendanceController extends Controller
             'data' => [
                 'total_working_days' => $totalWorkingDays,
                 'total_present' => $summary->total_present ?? 0,
-                'total_absent' => $summary->total_absent ?? 0,
+                'total_absent' => $summary->total_absent ?? 0,  // Excluding Fridays & Holidays
                 'total_late' => $summary->total_late ?? 0,
                 'total_holidays' => $totalHolidays,
                 'total_work_on_holidays' => $totalWorkOnHolidays,
             ],
         ], 200);
     }
+
 
 
 
@@ -1338,6 +1484,96 @@ class AttendanceController extends Controller
 
         return response()->json($attendance);
     }
+
+
+    public function filterAttendanceListForAllTime(Request $request)
+    {
+        try {
+            // Validate input
+            $validatedData = $request->validate([
+                'emp_id' => 'nullable|string|exists:employees,emp_id',
+                'start_date' => 'nullable|date',
+                'end_date' => 'nullable|date|after_or_equal:start_date',
+            ]);
+
+            // Find the employee by emp_id if provided
+            $employee = null;
+            if (!empty($validatedData['emp_id'])) {
+                $employee = Employee::where('emp_id', $validatedData['emp_id'])->first();
+
+                if (!$employee) {
+                    return $this->response(false, 'Employee not found', null, 404);
+                }
+            }
+
+            // Fetch attendance records with necessary filters
+            $attendances = Attendance::with([
+                'employee' => function ($query) {
+                    $query->select('id', 'user_id', 'first_name', 'last_name', 'email', 'phone_num', 'emp_id')
+                        ->with(['user' => function ($userQuery) {
+                            $userQuery->select('id', 'profile_photo_path');
+                        }]);
+                }
+            ])
+                ->when($employee, function ($query) use ($employee) {
+                    return $query->where('employee_id', $employee->id);
+                })
+                ->when(isset($validatedData['start_date']) && isset($validatedData['end_date']), function ($query) use ($validatedData) {
+                    return $query->whereBetween('date', [$validatedData['start_date'], $validatedData['end_date']]);
+                })
+                ->orderBy('date', 'desc') // Order by date in descending order
+                ->get();
+
+            // Customize the response structure
+            $customizedResponse = $attendances->map(function ($attendance) {
+                return [
+                    'id' => $attendance->id,
+                    'employee_id' => $attendance->employee_id,
+                    'date' => $attendance->date,
+                    'status' => $attendance->status,
+                    'clock_in' => $attendance->clock_in,
+                    'clock_in_reason' => $attendance->clock_in_reason,
+                    'clock_out' => $attendance->clock_out,
+                    'clock_out_reason' => $attendance->clock_out_reason,
+                    'early_leaving' => $attendance->early_leaving,
+                    'total_work_hour' => $attendance->total_work_hour,
+                    'ip_address' => $attendance->ip_address,
+                    'device' => $attendance->device,
+                    'late' => $attendance->late,
+                    'location' => $attendance->location,
+                    'daily_work_updates' => $attendance->daily_work_updates,
+                    // Embed employee data directly
+                    'first_name' => $attendance->employee->first_name ?? null,
+                    'last_name' => $attendance->employee->last_name ?? null,
+                    'email' => $attendance->employee->email ?? null,
+                    'phone_num' => $attendance->employee->phone_num ?? null,
+                    'emp_id' => $attendance->employee->emp_id ?? null,
+
+                    // Include profile photo path
+                    'image' => $attendance->employee->user->profile_photo_path
+                        ? url('storage/' . $attendance->employee->user->profile_photo_path) : null,
+                ];
+            });
+
+            // Return success response with the customized data
+            return $this->response(
+                true,
+                'Attendance records fetched successfully',
+                $customizedResponse,
+                200
+            );
+        } catch (\Exception $e) {
+            // Handle any exceptions
+            return $this->response(
+                false,
+                'Something went wrong while fetching attendance',
+                $e->getMessage(),
+                500
+            );
+        }
+    }
+
+
 
 
 

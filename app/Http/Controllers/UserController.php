@@ -240,7 +240,7 @@ class UserController extends Controller
                 $request->validate([
                     'password' => 'required|string|min:8|confirmed',
                 ]);
-            } elseif ($loggedInUser->id == $user->id && $user->role_id == 3) {
+            } elseif ($loggedInUser->id == $user->id && $user->role_id >= 3) {
                 // Employee can change their own password, must provide current password
                 $request->validate([
                     'current_password' => 'required|string|min:8',

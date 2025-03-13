@@ -12,6 +12,7 @@ use App\Http\Middleware\CheckIpAddress;
 Use App\Http\Controllers\UserActivityController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\HolidayController;
+use App\Http\Controllers\LeaveTypeController;
 
 
 
@@ -61,6 +62,7 @@ Route::middleware([
     Route::post('/update-employee/{id}', [EmployeeController::class, 'updateEmployee']);
     Route::get('/total-employee', [EmployeeController::class, 'countEmployeesWithEmpId']);
     Route::delete('/delete-employee/{id}', [EmployeeController::class, 'deleteEmployee']);
+    Route::get('/department-wise-employee-ids', [EmployeeController::class, 'getDepartmentWiseEmployeeIds']);
 
 
     // Attendance API
@@ -76,8 +78,20 @@ Route::middleware([
     Route::get('/total-present', [AttendanceController::class, 'getTotalPresentAndAbsent']);
     Route::get('/in-out-time', [AttendanceController::class, 'inOutTime']);
     Route::get('/department-wise-attendance-list', [AttendanceController::class, 'departmentWiseAttendance']);
-    Route::get('/self-monthly-attendance/{id}', [AttendanceController::class, 'getCurrentMonthAttendance']);
-    Route::get('/self-yearly-attendance/{id}', [AttendanceController::class, 'getYearlySelfAttendance']);
+    Route::get('/self-monthly-attendance/{id}', [AttendanceController::class, 'getTotalCurrentMonthAttendance']);
+    Route::get('/self-yearly-attendance/{id}', [AttendanceController::class, 'getTotalYearlySelfAttendance']);
+    Route::get('/filter-attendance-list', [AttendanceController::class, 'filterAttendanceListForAllTime']);
+
+
+
+    //Leave Request API
+    Route::get('/leave-types-list', [LeaveTypeController::class, 'leaveTypesList']);
+    Route::post('/create-leave-type', [LeaveTypeController::class, 'createLeaveType']);
+    Route::post('/edit-leave-type/{id}', [LeaveTypeController::class, 'updateLeaveType']);
+    Route::get('/leave-type-details/{id}', [LeaveTypeController::class, 'getLeaveTypeDetails']);
+    Route::delete('/delete-leave-type/{id}', [LeaveTypeController::class, 'deleteLeaveType']);
+
+
 
     //Holidays API
     Route::get('/holidays-list', [HolidayController::class, 'holidaysList']);

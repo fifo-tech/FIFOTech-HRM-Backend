@@ -766,6 +766,39 @@ class EmployeeController extends Controller
 
     }
 
+    public function getDepartmentWiseEmployeeIds()
+    {
+        $employees = Employee::with('department:id,name') // Fetch department name
+        ->select('dept_id', 'emp_id', 'first_name', 'last_name')
+            ->orderBy('dept_id')
+            ->get()
+            ->groupBy('dept_id');
+
+        $formattedData = [];
+
+        foreach ($employees as $deptId => $employeeList) {
+            $departmentName = $employeeList->first()->department->name ?? 'Unknown Department';
+
+            $formattedData[] = [
+                'department' => $departmentName,
+                'employees' => $employeeList->map(function ($employee) {
+                    return [
+                        'emp_id' => $employee->emp_id,
+//                        'first_name' => $employee->first_name,
+//                        'last_name' => $employee->last_name
+                    ];
+                }),
+            ];
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Department-wise employee records fetched successfully',
+            'data' => $formattedData,
+        ], 200);
+    }
+
+
 
 
 
