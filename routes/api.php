@@ -13,6 +13,8 @@ Use App\Http\Controllers\UserActivityController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LeaveTypeController;
+use App\Http\Controllers\LeaveRequestController;
+
 
 
 
@@ -63,6 +65,8 @@ Route::middleware([
     Route::get('/total-employee', [EmployeeController::class, 'countEmployeesWithEmpId']);
     Route::delete('/delete-employee/{id}', [EmployeeController::class, 'deleteEmployee']);
     Route::get('/department-wise-employee-ids', [EmployeeController::class, 'getDepartmentWiseEmployeeIds']);
+    Route::get('/employee-upcoming-birthdays', [EmployeeController::class, 'getUpcomingBirthdays']);
+
 
 
     // Attendance API
@@ -90,6 +94,15 @@ Route::middleware([
     Route::post('/edit-leave-type/{id}', [LeaveTypeController::class, 'updateLeaveType']);
     Route::get('/leave-type-details/{id}', [LeaveTypeController::class, 'getLeaveTypeDetails']);
     Route::delete('/delete-leave-type/{id}', [LeaveTypeController::class, 'deleteLeaveType']);
+
+    Route::get('/leave-requests-list', [LeaveRequestController::class, 'getAllLeaveRequestsList']);
+    Route::get('/self-leave-requests-list', [LeaveRequestController::class, 'getSelfLeaveRequestsList']);
+    Route::post('/create-leave-request', [LeaveRequestController::class, 'createLeaveRequest']);
+    Route::get('/leave-request-details/{id}', [LeaveRequestController::class, 'leaveRequestDetails']);
+    Route::post('/edit-leave-request/{id}', [LeaveRequestController::class, 'editLeaveRequest']);
+    Route::delete('/delete-leave-request/{id}', [LeaveRequestController::class, 'deleteLeaveRequest']);
+    Route::get('/department-wise-leave-requests', [LeaveRequestController::class, 'getDepartmentWiseLeaveRequests']);
+    Route::put('/leave-request-approve/{id}', [LeaveRequestController::class, 'departmentWiseLeaveRequestApprove']);
 
 
 

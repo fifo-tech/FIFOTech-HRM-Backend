@@ -14,15 +14,15 @@ return new class extends Migration
         Schema::create('leave_requests', function (Blueprint $table) {
             $table->id();
             $table->foreignId('employee_id')->constrained('employees')->onDelete('cascade');
-            $table->string('leave_type',);
+            $table->string('leave_type');
             $table->date('start_date');
             $table->date('end_date');
             $table->boolean('half_day')->default(false);
             $table->text('remarks')->nullable();
             $table->text('leave_reason');
             $table->string('leave_attachment')->nullable();
-            $table->string('status');
-            $table->foreignId('approved_by')->nullable()->constrained('users')->onDelete('set null');
+            $table->string('status')->default('pending');
+            $table->foreignId('approved_by')->nullable()->constrained('employees')->onDelete('set null');
             $table->timestamps();
         });
     }

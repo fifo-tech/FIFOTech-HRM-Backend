@@ -798,6 +798,105 @@ class EmployeeController extends Controller
         ], 200);
     }
 
+//    public function getUpcomingBirthdays()
+//    {
+//        try {
+//            // Get current month
+//            $currentMonth = Carbon::now()->month;
+//
+//            // Fetch employees with birthdays in the current month
+//            $employees = Employee::with([
+//                'user' => function ($query) {
+//                    $query->select('id', 'first_name', 'last_name', 'email', 'profile_photo_path'); // Selecting necessary columns
+//                }
+//            ])
+//                ->whereMonth('date_of_birth', $currentMonth)
+//                ->whereDay('date_of_birth', '>=', Carbon::now()->day) // Include only upcoming birthdays
+//                ->orderBy('date_of_birth', 'asc')
+//                ->get(['id', 'user_id', 'phone_num', 'date_of_birth']); // Selecting only required fields from employees
+//
+//            // Format the data for response
+//            $employees = $employees->map(function ($employee) {
+//                return [
+//                    'id' => $employee->id,
+//                    'first_name' => optional($employee->user)->first_name,
+//                    'last_name' => optional($employee->user)->last_name,
+//                    'email' => optional($employee->user)->email,
+//                    'phone_num' => $employee->phone_num,
+//                    'date_of_birth' => $employee->date_of_birth,
+//                    'profile_photo_path' => optional($employee->user)->profile_photo_path
+//                        ? url('storage/' . $employee->user->profile_photo_path) // Construct full URL
+//                        : null,
+//                ];
+//            });
+//
+//            return response()->json([
+//                'success' => true,
+//                'message' => 'Upcoming birthdays fetched successfully',
+//                'data' => $employees
+//            ], 200);
+//        } catch (\Exception $e) {
+//            return response()->json([
+//                'success' => false,
+//                'message' => 'Something went wrong',
+//                'error' => $e->getMessage(),
+//            ], 500);
+//        }
+//    }
+
+    public function getUpcomingBirthdays()
+    {
+        try {
+            // Get current date
+            $currentDate = Carbon::now();
+            $currentYear = $currentDate->year;
+            $currentMonth = $currentDate->month;
+            $currentDay = $currentDate->day;
+
+            // Fetch employees with birthdays in the current month
+            $employees = Employee::with([
+                'user' => function ($query) {
+                    $query->select('id', 'first_name', 'last_name', 'email', 'profile_photo_path'); // Selecting necessary columns
+                }
+            ])
+                ->whereMonth('date_of_birth', $currentMonth)
+                ->whereDay('date_of_birth', '>=', $currentDay) // Include only upcoming birthdays
+                ->orderBy('date_of_birth', 'asc')
+                ->get(['id', 'user_id', 'phone_num', 'date_of_birth']); // Selecting only required fields from employees
+
+            // Format the data for response
+            $employees = $employees->map(function ($employee) use ($currentYear) {
+                // Extract month and day from date_of_birth
+                $dob = Carbon::parse($employee->date_of_birth);
+                $formattedDob = Carbon::create($currentYear, $dob->month, $dob->day)->toDateString(); // Set current year
+
+                return [
+                    'id' => $employee->id,
+                    'first_name' => optional($employee->user)->first_name,
+                    'last_name' => optional($employee->user)->last_name,
+                    'email' => optional($employee->user)->email,
+                    'phone_num' => $employee->phone_num,
+                    'date_of_birth' => $formattedDob, // Only change year to current year
+                    'profile_photo_path' => optional($employee->user)->profile_photo_path
+                        ? url('storage/' . $employee->user->profile_photo_path) // Construct full URL
+                        : null,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Upcoming birthdays fetched successfully',
+                'data' => $employees
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
 
 
 
