@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Holiday;
+use Carbon\Carbon;
 
 class HolidayController extends Controller
 {
@@ -68,5 +69,22 @@ class HolidayController extends Controller
         $holiday->delete();
 
         return response()->json(['message' => 'Holiday deleted successfully']);
+    }
+    public function upcomingHolidays()
+    {
+        $currentMonth = Carbon::now()->month;
+        $currentYear = Carbon::now()->year;
+        $today = Carbon::today();
+
+        $holidays = Holiday::whereYear('date', $currentYear)
+            ->whereMonth('date', $currentMonth)
+            ->where('date', '>=', $today) // Only future dates
+            ->orderBy('date')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'upcoming_holidays' => $holidays,
+        ]);
     }
 }

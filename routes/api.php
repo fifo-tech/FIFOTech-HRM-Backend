@@ -99,6 +99,8 @@ Route::middleware([
     Route::post('/edit-holiday/{id}', [HolidayController::class, 'updateHoliday']);
     Route::get('/holiday-details/{id}', [HolidayController::class, 'getHolidayDetails']);
     Route::delete('/delete-holiday/{id}', [HolidayController::class, 'deleteHoliday']);
+    Route::get('/upcoming-holidays', [HolidayController::class, 'upcomingHolidays']);
+
 
 
     //work Updates API
