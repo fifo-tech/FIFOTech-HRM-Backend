@@ -51,6 +51,7 @@ class LeaveRequestController extends Controller
                             ? url('storage/' .  $leave->leave_attachment)
                             : null,
                         'status' => $leave->status,
+                        'approved_by' => $leave->approved_by,
                         'created_at' => $leave->created_at->format('Y-m-d H:i:s'),
                         'updated_at' => $leave->updated_at->format('Y-m-d H:i:s'),
                     ];
@@ -542,6 +543,7 @@ class LeaveRequestController extends Controller
                                 ? url('storage/' .  $leave->leave_attachment)
                                 : null,
                             'status' => $leave->status,
+                            'approved_by' => $leave->approved_by,
                             'created_at' => $leave->created_at->format('Y-m-d H:i:s'),
                             'updated_at' => $leave->updated_at->format('Y-m-d H:i:s'),
                         ];
@@ -574,7 +576,7 @@ class LeaveRequestController extends Controller
         try {
             // Validate the request
             $request->validate([
-                'status' => 'required|in:approved,rejected', // Ensure valid status
+                'status' => 'required|in:pending,approved,rejected', // Ensure valid status
             ]);
 
             // Fetch the logged-in user
@@ -601,7 +603,8 @@ class LeaveRequestController extends Controller
 
             // Update leave request status and approver
             $leaveRequest->status = $request->status;
-            $leaveRequest->approved_by = $user->id; // Store the ID of the HR Manager who approved/rejected it
+//            $leaveRequest->approved_by = $user->id; // Store the ID of the HR Manager who approved/rejected it
+            $leaveRequest->approved_by = $user->first_name . ' ' . $user->last_name;
             $leaveRequest->updated_at = now();
             $leaveRequest->save();
 
