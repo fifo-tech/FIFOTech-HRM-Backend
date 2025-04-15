@@ -594,26 +594,40 @@ class AttendanceController extends Controller
                 ->where('date', $validatedData['date'])
                 ->first();
 
+//            dd($attendance->clock_in);
+
+
             if (!$attendance) {
                 return $this->response(false, 'Attendance record not found', null, 404);
             }
+
+            // Check if clock_in already exists in DB and new clock_in is being provided
+            if (!empty($validatedData['clock_in']) && !empty($attendance->clock_in)) {
+                return $this->response(false, 'Clock-in already exists, cannot update', null, 400);
+            }
+            //  Check if clock_out already exists in DB and new clock_out is being provided
+            if (!empty($validatedData['clock_out']) && !empty($attendance->clock_out)) {
+                return $this->response(false, 'Clock-out already exists, cannot update', null, 400);
+            }
+
 
             $timezone = 'Asia/Dhaka';
             $officeStartTime = Carbon::createFromTime(9, 0, 0, $timezone);
             $officeEndTime = Carbon::createFromTime(18, 0, 0, $timezone);
 
-            // Parse times
+            // Parse clock_in
             $clockIn = !empty($validatedData['clock_in'])
                 ? $this->parseTimeString($validatedData['clock_in'], $timezone, 'clock_in')
                 : (!empty($attendance->clock_in)
                     ? $this->parseTimeString($attendance->clock_in, $timezone, 'clock_in')
                     : null);
 
+            // Parse clock_out (only if provided)
             $clockOut = !empty($validatedData['clock_out'])
                 ? $this->parseTimeString($validatedData['clock_out'], $timezone, 'clock_out')
                 : null;
 
-            // Validate time logic
+            // Validate clock_out must be after clock_in
             if ($clockIn && $clockOut && $clockOut->lte($clockIn)) {
                 return $this->response(false, 'Clock-out must be after clock-in', null, 400);
             }
@@ -622,15 +636,17 @@ class AttendanceController extends Controller
                 return $this->response(false, 'Clock-in is required before clock-out', null, 400);
             }
 
-            // Time calculations
+            // Calculate work hours
             $totalWorkHour = ($clockIn && $clockOut) ? $clockIn->diff($clockOut)->format('%H:%I') : null;
             $late = ($clockIn && $clockIn->gt($officeStartTime)) ? $officeStartTime->diff($clockIn)->format('%H:%I') : null;
             $earlyLeaving = ($clockOut && $clockOut->lt($officeEndTime)) ? $officeEndTime->diff($clockOut)->format('%H:%I') : null;
 
-            // Prepare update
+            // Prepare update data
             $updateData = [];
 
             if (!empty($validatedData['clock_in'])) {
+                $updateData['clock_in'] = $clockIn->format('H:i');
+            } elseif (!empty($attendance->clock_in)) {
                 $updateData['clock_in'] = $clockIn->format('H:i');
             }
 
@@ -647,37 +663,41 @@ class AttendanceController extends Controller
             $updateData['early_leaving'] = $earlyLeaving;
             $updateData['total_work_hour'] = $totalWorkHour;
 
-            // Update attendance
             $attendance->update($updateData);
 
             return $this->response(true, 'Attendance updated', $attendance, 200);
 
         } catch (\Illuminate\Validation\ValidationException $ve) {
-            return $ve->getResponse(); // Laravel handles this well
+            return $ve->getResponse();
         } catch (\Exception $e) {
             return $this->response(false, 'Error updating attendance', $e->getMessage(), 500);
         }
     }
 
-
-
     /**
-     * Try parsing a time string in both 12h and 24h formats
+     * Parses a time string in either 12-hour or 24-hour format.
      */
     private function parseTimeString($timeStr, $timezone, $fieldName = 'time')
     {
         try {
-            return Carbon::createFromFormat('h:i A', $timeStr, $timezone);
+            return Carbon::createFromFormat('h:i A', $timeStr, $timezone); // 12-hour format
         } catch (\Exception $e1) {
             try {
-                return Carbon::createFromFormat('H:i', $timeStr, $timezone);
+                return Carbon::createFromFormat('H:i', $timeStr, $timezone); // 24-hour format
             } catch (\Exception $e2) {
-                throw \Illuminate\Validation\ValidationException::withMessages([
-                    $fieldName => ["Invalid {$fieldName} format: '{$timeStr}'. Use HH:MM (24hr) or HH:MM AM/PM (12hr)"]
-                ]);
+                try {
+                    return Carbon::createFromFormat('H:i:s', $timeStr, $timezone); // <- this solves your DB issue
+                } catch (\Exception $e3) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        $fieldName => ["Invalid {$fieldName} format: '{$timeStr}'. Use HH:MM, HH:MM:SS or HH:MM AM/PM"]
+                    ]);
+                }
             }
         }
     }
+
+
+
 
 
 
