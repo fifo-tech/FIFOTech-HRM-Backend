@@ -101,8 +101,15 @@ Route::middleware([
     Route::get('/leave-request-details/{id}', [LeaveRequestController::class, 'leaveRequestDetails']);
     Route::post('/edit-leave-request/{id}', [LeaveRequestController::class, 'editLeaveRequest']);
     Route::delete('/delete-leave-request/{id}', [LeaveRequestController::class, 'deleteLeaveRequest']);
+    Route::delete('/delete-leave-attachment/{id}', [LeaveRequestController::class, 'deleteLeaveAttachment']);
     Route::get('/department-wise-leave-requests', [LeaveRequestController::class, 'getDepartmentWiseLeaveRequests']);
     Route::put('/leave-request-approve/{id}', [LeaveRequestController::class, 'departmentWiseLeaveRequestApprove']);
+    Route::put('/leave-request-approve-hr/{id}', [LeaveRequestController::class, 'LeaveRequestApproveByHr']);
+    Route::get('/hr-admin-leave-requests', [LeaveRequestController::class, 'getHrAdminLeaveRequests']);
+    Route::put('/leave-request-approve-gm/{id}', [LeaveRequestController::class, 'LeaveRequestApproveByGm']);
+    Route::get('/gm-leave-requests', [LeaveRequestController::class, 'getGmLeaveRequest']);
+    Route::put('/leave-request-approve-ceo/{id}', [LeaveRequestController::class, 'LeaveRequestApproveByCeo']);
+
 
 
 

@@ -576,83 +576,122 @@ class AttendanceController extends Controller
     public function updateAttendanceByAdmin(Request $request)
     {
         try {
-            // Validate the input data
             $validatedData = $request->validate([
                 'emp_id' => 'required|string|exists:employees,emp_id',
                 'date' => 'required|date',
-                'clock_in' => 'nullable|date_format:h:i A', // 12-hour format with AM/PM
-                'clock_out' => 'nullable|date_format:h:i A', // 12-hour format with AM/PM
+                'clock_in' => 'nullable|string',
+                'clock_out' => 'nullable|string',
             ]);
 
-            // Find the employee by emp_id
-            $employee = Employee::where('emp_id', $validatedData['emp_id'])
-                ->orderBy('updated_at', 'desc') // Order by updated_at in descending order
-                ->first();
-
-
+            // Find employee
+            $employee = Employee::where('emp_id', $validatedData['emp_id'])->first();
             if (!$employee) {
                 return $this->response(false, 'Employee not found', null, 404);
             }
 
-            // Check if an attendance record exists for the given date and employee
+            // Find attendance record
             $attendance = Attendance::where('employee_id', $employee->id)
                 ->where('date', $validatedData['date'])
                 ->first();
 
             if (!$attendance) {
-                return $this->response(false, 'Attendance record not found for the given employee and date', null, 404);
+                return $this->response(false, 'Attendance record not found', null, 404);
             }
 
-            // Check if clock_in or clock_out is already set
-            if ($attendance->clock_in && $attendance->clock_out) {
-                return $this->response(false, 'Attendance already recorded', null, 400);
-            }
-
-            // Reference times for calculations in Asia/Dhaka timezone
             $timezone = 'Asia/Dhaka';
-            $officeStartTime = \Carbon\Carbon::createFromTime(9, 0, 0, $timezone); // 09:00 AM
-            $officeEndTime = \Carbon\Carbon::createFromTime(18, 0, 0, $timezone); // 06:00 PM
+            $officeStartTime = Carbon::createFromTime(9, 0, 0, $timezone);
+            $officeEndTime = Carbon::createFromTime(18, 0, 0, $timezone);
 
-            // Parse clock_in and clock_out times in 12-hour format with AM/PM
-            $clockIn = $validatedData['clock_in']
-                ? \Carbon\Carbon::createFromFormat('h:i A', $validatedData['clock_in'], $timezone)
+            // Parse times
+            $clockIn = !empty($validatedData['clock_in'])
+                ? $this->parseTimeString($validatedData['clock_in'], $timezone, 'clock_in')
+                : (!empty($attendance->clock_in)
+                    ? $this->parseTimeString($attendance->clock_in, $timezone, 'clock_in')
+                    : null);
+
+            $clockOut = !empty($validatedData['clock_out'])
+                ? $this->parseTimeString($validatedData['clock_out'], $timezone, 'clock_out')
                 : null;
-            $clockOut = $validatedData['clock_out']
-                ? \Carbon\Carbon::createFromFormat('h:i A', $validatedData['clock_out'], $timezone)
-                : null;
 
-            // Calculate late time (if applicable)
-            $late = $clockIn && $clockIn->gt($officeStartTime)
-                ? $officeStartTime->diff($clockIn)->format('%H:%I') // Calculate the difference between office start and clock-in time
-                : null; // Default to '00:00' if the employee is not late
+            // Validate time logic
+            if ($clockIn && $clockOut && $clockOut->lte($clockIn)) {
+                return $this->response(false, 'Clock-out must be after clock-in', null, 400);
+            }
 
-            // Calculate early leaving time (if applicable)
-            $earlyLeaving = $clockOut && $clockOut->lt($officeEndTime)
-                ? $officeEndTime->diff($clockOut)->format('%H:%I') // Calculate the difference between clock-out and office end time
-                : null; // Default to '00:00' if the employee didn't leave early
+            if (!$clockIn && $clockOut) {
+                return $this->response(false, 'Clock-in is required before clock-out', null, 400);
+            }
 
-            // Calculate total work hours (if both clock-in and clock-out are provided)
-            $totalWorkHour = $clockIn && $clockOut
-                ? $clockIn->diff($clockOut)->format('%H:%I') // Calculate the total work hours
-                : null; // Default to '00:00' if the employee didn't clock-in or clock-out
+            // Time calculations
+            $totalWorkHour = ($clockIn && $clockOut) ? $clockIn->diff($clockOut)->format('%H:%I') : null;
+            $late = ($clockIn && $clockIn->gt($officeStartTime)) ? $officeStartTime->diff($clockIn)->format('%H:%I') : null;
+            $earlyLeaving = ($clockOut && $clockOut->lt($officeEndTime)) ? $officeEndTime->diff($clockOut)->format('%H:%I') : null;
 
-            // Update the attendance record with the calculated values
-            $attendance->update([
-                'clock_in' => $clockIn ? $clockIn->format('H:i') : $attendance->clock_in, // Store in 24-hour format
-                'clock_out' => $clockOut ? $clockOut->format('H:i') : $attendance->clock_out, // Store in 24-hour format
-                'status' => $clockIn && $clockOut ? 'Present' : 'Absent',
-                'late' => $late, // Store the late value as a time
-                'early_leaving' => $earlyLeaving, // Store the early leaving value as a time
-                'total_work_hour' => $totalWorkHour, // Store the total work hours value as a time
-            ]);
+            // Prepare update
+            $updateData = [];
 
-            // Return success response
-            return $this->response(true, 'Attendance updated successfully', $attendance, 200);
+            if (!empty($validatedData['clock_in'])) {
+                $updateData['clock_in'] = $clockIn->format('H:i');
+            }
+
+            if (!empty($validatedData['clock_out'])) {
+                $updateData['clock_out'] = $clockOut->format('H:i');
+            }
+
+            $updateData['status'] = $attendance->status;
+            if (empty($attendance->clock_in) && $clockIn) {
+                $updateData['status'] = 'Present';
+            }
+
+            $updateData['late'] = $late;
+            $updateData['early_leaving'] = $earlyLeaving;
+            $updateData['total_work_hour'] = $totalWorkHour;
+
+            // Update attendance
+            $attendance->update($updateData);
+
+            return $this->response(true, 'Attendance updated', $attendance, 200);
+
+        } catch (\Illuminate\Validation\ValidationException $ve) {
+            return $ve->getResponse(); // Laravel handles this well
         } catch (\Exception $e) {
-            // Handle exceptions
-            return $this->response(false, 'Something went wrong while updating attendance', $e->getMessage(), 500);
+            return $this->response(false, 'Error updating attendance', $e->getMessage(), 500);
         }
     }
+
+
+
+    /**
+     * Try parsing a time string in both 12h and 24h formats
+     */
+    private function parseTimeString($timeStr, $timezone, $fieldName = 'time')
+    {
+        try {
+            return Carbon::createFromFormat('h:i A', $timeStr, $timezone);
+        } catch (\Exception $e1) {
+            try {
+                return Carbon::createFromFormat('H:i', $timeStr, $timezone);
+            } catch (\Exception $e2) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    $fieldName => ["Invalid {$fieldName} format: '{$timeStr}'. Use HH:MM (24hr) or HH:MM AM/PM (12hr)"]
+                ]);
+            }
+        }
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     // Total Present and Absent
     public function getTotalPresentAndAbsent()
