@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Department;
+use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Employee;
@@ -175,34 +176,323 @@ class AttendanceController extends Controller
 
 
 
+// this is the just previous code of last code. v-1
+//    public function fetchAttendanceLogs()
+//    {
+//        // API URL
+//        $apiUrl = 'http://192.168.200.170:8000/api/logs';
+//
+//        // Fetch data from API
+//        $response = Http::get($apiUrl);
+//
+//        if ($response->successful()) {
+//            $data = $response->json(); // Parse JSON data
+//
+//            if (!isset($data['logs'])) {
+//                return response()->json(['message' => 'Invalid API response format'], 400);
+//            }
+//
+//            // Iterate over the logs and group them by date
+//            $attendanceRecords = [];
+//            foreach ($data['logs'] as $log) {
+//                $user_id = ltrim($log['user_id'], '0'); // Remove leading zeros from user_id
+//
+//                // Get employee whose emp_id last numeric part matches user_id
+//                $employees = Employee::all();
+//                $matchedEmployee = null;
+//
+//                foreach ($employees as $employee) {
+//                    if (preg_match('/(\d+)$/', $employee->emp_id, $matches)) {
+//                        $emp_last_part = ltrim($matches[1], '0'); // Remove leading zeros
+//
+//                        if ($emp_last_part === $user_id) {
+//                            $matchedEmployee = $employee;
+//                            break;
+//                        }
+//                    }
+//                }
+//
+//                if ($matchedEmployee) {
+//                    $logDate = substr($log['timestamp'], 0, 10); // Extract the date part from timestamp (YYYY-MM-DD)
+//
+//                    if (!isset($attendanceRecords[$matchedEmployee->id][$logDate])) {
+//                        $attendanceRecords[$matchedEmployee->id][$logDate] = [];
+//                    }
+//
+//                    // Convert timestamp to MySQL DATETIME format
+//                    $formattedTimestamp = Carbon::parse($log['timestamp'])->format('Y-m-d H:i:s');
+//
+//                    $attendanceRecords[$matchedEmployee->id][$logDate][] = $formattedTimestamp;
+//                }
+//            }
+//
+//            // Process attendance records
+//            foreach ($attendanceRecords as $employee_id => $dates) {
+//                foreach ($dates as $date => $timestamps) {
+//                    sort($timestamps);
+//                    $clock_in = $timestamps[0];
+//                    $clock_out = count($timestamps) > 1 ? $timestamps[count($timestamps) - 1] : null;
+//
+//                    $late = $this->calculateLateTime($clock_in, $date);
+//                    $early_leaving = $this->calculateEarlyLeavingTime($clock_out, $date);
+//
+//                    // Calculate total work hour
+//                    $total_work_hour = null;
+//                    if ($clock_out) {
+//                        $in = Carbon::parse($clock_in);
+//                        $out = Carbon::parse($clock_out);
+//                        $diff = $in->diff($out);
+//                        $total_work_hour = sprintf('%02d:%02d:%02d', $diff->h + ($diff->days * 24), $diff->i, $diff->s);
+//                    }
+//
+//
+//                    $attendance = Attendance::updateOrCreate(
+//                        ['employee_id' => $employee_id, 'date' => $date],
+//                        [
+//                            'clock_in' => $clock_in,
+//                            'clock_out' => $clock_out,
+//                            'status' => 'Present',
+//                            'late' => $late,
+//                            'early_leaving' => $early_leaving,
+//                            'total_work_hour' => $total_work_hour,
+//                        ]
+//                    );
+//                }
+//            }
+//
+//            return response()->json(['message' => 'Attendance logs updated successfully!'], 200);
+//        } else {
+//            return response()->json(['message' => 'Failed to fetch attendance logs'], 500);
+//        }
+//    }
+
+
+
+//This is the last code v-2
+//    public function fetchAttendanceLogs()
+//    {
+//        $apiUrl = 'http://192.168.200.170:8000/api/logs';
+//        $response = Http::get($apiUrl);
+//
+//        if ($response->successful()) {
+//            $data = $response->json();
+//
+//            if (!isset($data['logs'])) {
+//                return response()->json(['message' => 'Invalid API response format'], 400);
+//            }
+//
+//            $attendanceRecords = [];
+//            foreach ($data['logs'] as $log) {
+//                $user_id = ltrim($log['user_id'], '0');
+//                $employees = Employee::all();
+//                $matchedEmployee = null;
+//
+//                foreach ($employees as $employee) {
+//                    if (preg_match('/(\d+)$/', $employee->emp_id, $matches)) {
+//                        $emp_last_part = ltrim($matches[1], '0');
+//                        if ($emp_last_part === $user_id) {
+//                            $matchedEmployee = $employee;
+//                            break;
+//                        }
+//                    }
+//                }
+//
+//                if ($matchedEmployee) {
+//                    $logDate = substr($log['timestamp'], 0, 10);
+//                    if (!isset($attendanceRecords[$matchedEmployee->id][$logDate])) {
+//                        $attendanceRecords[$matchedEmployee->id][$logDate] = [];
+//                    }
+//
+//                    $formattedTimestamp = Carbon::parse($log['timestamp'])->format('Y-m-d H:i:s');
+//                    $attendanceRecords[$matchedEmployee->id][$logDate][] = $formattedTimestamp;
+//                }
+//            }
+//
+//            foreach ($attendanceRecords as $employee_id => $dates) {
+//                foreach ($dates as $date => $timestamps) {
+//                    sort($timestamps);
+//                    $clock_in = $timestamps[0];
+//                    $clock_out = count($timestamps) > 1 ? $timestamps[count($timestamps) - 1] : null;
+//
+//                    $late = $this->calculateLateTime($clock_in, $date);
+//                    $early_leaving = $this->calculateEarlyLeavingTime($clock_out, $date);
+//
+//                    $total_work_hour = null;
+//                    if ($clock_out) {
+//                        $in = Carbon::parse($clock_in);
+//                        $out = Carbon::parse($clock_out);
+//                        $diff = $in->diff($out);
+//                        $total_work_hour = sprintf('%02d:%02d:%02d', $diff->h + ($diff->days * 24), $diff->i, $diff->s);
+//                    }
+//
+//                    // Custom conditional update logic
+//                    $existing = Attendance::where('employee_id', $employee_id)->where('date', $date)->first();
+//
+//                    if ($existing) {
+//                        $updateData = [];
+//
+//                        if (empty($existing->clock_in) && $clock_in) {
+//                            $updateData['clock_in'] = $clock_in;
+//                            $updateData['late'] = $late;
+//                        }
+//
+//                        if (empty($existing->clock_out) && $clock_out) {
+//                            $updateData['clock_out'] = $clock_out;
+//                            $updateData['early_leaving'] = $early_leaving;
+//                            $updateData['total_work_hour'] = $total_work_hour;
+//                        }
+//
+//                        if (!empty($updateData)) {
+//                            $updateData['status'] = 'Present';
+//                            $existing->update($updateData);
+//                        }
+//                    } else {
+//                        Attendance::create([
+//                            'employee_id' => $employee_id,
+//                            'date' => $date,
+//                            'clock_in' => $clock_in,
+//                            'clock_out' => $clock_out,
+//                            'status' => 'Present',
+//                            'late' => $late,
+//                            'early_leaving' => $early_leaving,
+//                            'total_work_hour' => $total_work_hour,
+//                        ]);
+//                    }
+//                }
+//            }
+//
+//            return response()->json(['message' => 'Attendance logs updated successfully!'], 200);
+//        } else {
+//            return response()->json(['message' => 'Failed to fetch attendance logs'], 500);
+//        }
+//    }
+
+
+//This is the last code v-3
+//    public function fetchAttendanceLogs()
+//    {
+//        $apiUrl = 'http://192.168.200.170:8000/api/logs';
+//        $response = Http::get($apiUrl);
+//
+//        if ($response->successful()) {
+//            $data = $response->json();
+//
+//            if (!isset($data['logs'])) {
+//                return response()->json(['message' => 'Invalid API response format'], 400);
+//            }
+//
+//            $attendanceRecords = [];
+//
+//            foreach ($data['logs'] as $log) {
+//                $user_id = ltrim($log['user_id'], '0');
+//
+//                $employees = Employee::all();
+//                $matchedEmployee = null;
+//
+//                foreach ($employees as $employee) {
+//                    if (preg_match('/(\d+)$/', $employee->emp_id, $matches)) {
+//                        $emp_last_part = ltrim($matches[1], '0');
+//
+//                        if ($emp_last_part === $user_id) {
+//                            $matchedEmployee = $employee;
+//                            break;
+//                        }
+//                    }
+//                }
+//
+//                if ($matchedEmployee) {
+//                    $logDate = substr($log['timestamp'], 0, 10);
+//                    $formattedTimestamp = Carbon::parse($log['timestamp'])->format('Y-m-d H:i:s');
+//                    $attendanceRecords[$matchedEmployee->id][$logDate][] = $formattedTimestamp;
+//                }
+//            }
+//
+//            foreach ($attendanceRecords as $employee_id => $dates) {
+//                foreach ($dates as $date => $timestamps) {
+//                    sort($timestamps);
+//                    $clock_in = $timestamps[0];
+//                    $clock_out = count($timestamps) > 1 ? $timestamps[count($timestamps) - 1] : null;
+//
+//                    $late = $this->calculateLateTime($clock_in, $date);
+//                    $early_leaving = $this->calculateEarlyLeavingTime($clock_out, $date);
+//
+//                    $total_work_hour = null;
+//                    if ($clock_out) {
+//                        $in = Carbon::parse($clock_in);
+//                        $out = Carbon::parse($clock_out);
+//                        $diff = $in->diff($out);
+//                        $total_work_hour = sprintf('%02d:%02d:%02d', $diff->h + ($diff->days * 24), $diff->i, $diff->s);
+//                    }
+//
+//                    $existing = Attendance::where('employee_id', $employee_id)
+//                        ->where('date', $date)
+//                        ->first();
+//
+//                    if ($existing) {
+//                        $updateData = [];
+//
+//                        // Only update clock_in if it's not set yet
+//                        if (empty($existing->clock_in)) {
+//                            $updateData['clock_in'] = $clock_in;
+//                            $updateData['late'] = $late;
+//                        }
+//
+//                        // Always update clock_out if new value is not null
+//                        if (!empty($clock_out)) {
+//                            $updateData['clock_out'] = $clock_out;
+//                            $updateData['early_leaving'] = $early_leaving;
+//                            $updateData['total_work_hour'] = $total_work_hour;
+//                        }
+//
+//                        if (!empty($updateData)) {
+//                            $updateData['status'] = 'Present';
+//                            $existing->update($updateData);
+//                        }
+//                    } else {
+//                        Attendance::create([
+//                            'employee_id' => $employee_id,
+//                            'date' => $date,
+//                            'clock_in' => $clock_in,
+//                            'clock_out' => $clock_out,
+//                            'status' => 'Present',
+//                            'late' => $late,
+//                            'early_leaving' => $early_leaving,
+//                            'total_work_hour' => $total_work_hour,
+//                        ]);
+//                    }
+//                }
+//            }
+//
+//            return response()->json(['message' => 'Attendance logs updated successfully!'], 200);
+//        } else {
+//            return response()->json(['message' => 'Failed to fetch attendance logs'], 500);
+//        }
+//    }
+
 
     public function fetchAttendanceLogs()
     {
-        // API URL
         $apiUrl = 'http://192.168.200.170:8000/api/logs';
-
-        // Fetch data from API
         $response = Http::get($apiUrl);
 
         if ($response->successful()) {
-            $data = $response->json(); // Parse JSON data
+            $data = $response->json();
 
             if (!isset($data['logs'])) {
                 return response()->json(['message' => 'Invalid API response format'], 400);
             }
 
-            // Iterate over the logs and group them by date
             $attendanceRecords = [];
-            foreach ($data['logs'] as $log) {
-                $user_id = ltrim($log['user_id'], '0'); // Remove leading zeros from user_id
 
-                // Get employee whose emp_id last numeric part matches user_id
+            foreach ($data['logs'] as $log) {
+                $user_id = ltrim($log['user_id'], '0');
+
                 $employees = Employee::all();
                 $matchedEmployee = null;
 
                 foreach ($employees as $employee) {
                     if (preg_match('/(\d+)$/', $employee->emp_id, $matches)) {
-                        $emp_last_part = ltrim($matches[1], '0'); // Remove leading zeros
+                        $emp_last_part = ltrim($matches[1], '0');
 
                         if ($emp_last_part === $user_id) {
                             $matchedEmployee = $employee;
@@ -212,20 +502,12 @@ class AttendanceController extends Controller
                 }
 
                 if ($matchedEmployee) {
-                    $logDate = substr($log['timestamp'], 0, 10); // Extract the date part from timestamp (YYYY-MM-DD)
-
-                    if (!isset($attendanceRecords[$matchedEmployee->id][$logDate])) {
-                        $attendanceRecords[$matchedEmployee->id][$logDate] = [];
-                    }
-
-                    // Convert timestamp to MySQL DATETIME format
+                    $logDate = substr($log['timestamp'], 0, 10);
                     $formattedTimestamp = Carbon::parse($log['timestamp'])->format('Y-m-d H:i:s');
-
                     $attendanceRecords[$matchedEmployee->id][$logDate][] = $formattedTimestamp;
                 }
             }
 
-            // Process attendance records
             foreach ($attendanceRecords as $employee_id => $dates) {
                 foreach ($dates as $date => $timestamps) {
                     sort($timestamps);
@@ -235,16 +517,52 @@ class AttendanceController extends Controller
                     $late = $this->calculateLateTime($clock_in, $date);
                     $early_leaving = $this->calculateEarlyLeavingTime($clock_out, $date);
 
-                    $attendance = Attendance::updateOrCreate(
-                        ['employee_id' => $employee_id, 'date' => $date],
-                        [
+                    $total_work_hour = null;
+                    if ($clock_out) {
+                        $in = Carbon::parse($clock_in);
+                        $out = Carbon::parse($clock_out);
+                        $diff = $in->diff($out);
+                        $total_work_hour = sprintf('%02d:%02d:%02d', $diff->h + ($diff->days * 24), $diff->i, $diff->s);
+                    }
+
+                    $existing = Attendance::where('employee_id', $employee_id)
+                        ->where('date', $date)
+                        ->first();
+
+                    if ($existing) {
+                        $updateData = [];
+
+                        // Update clock_in only if not already set
+                        if (empty($existing->clock_in)) {
+                            $updateData['clock_in'] = $clock_in;
+                            $updateData['late'] = $late;
+                        }
+
+                        // Update clock_out if new one is later and not null
+                        if (!empty($clock_out)) {
+                            if (empty($existing->clock_out) || Carbon::parse($clock_out)->gt(Carbon::parse($existing->clock_out))) {
+                                $updateData['clock_out'] = $clock_out;
+                                $updateData['early_leaving'] = $early_leaving;
+                                $updateData['total_work_hour'] = $total_work_hour;
+                            }
+                        }
+
+                        if (!empty($updateData)) {
+                            $updateData['status'] = 'Present';
+                            $existing->update($updateData);
+                        }
+                    } else {
+                        Attendance::create([
+                            'employee_id' => $employee_id,
+                            'date' => $date,
                             'clock_in' => $clock_in,
                             'clock_out' => $clock_out,
                             'status' => 'Present',
                             'late' => $late,
-                            'early_leaving' => $early_leaving
-                        ]
-                    );
+                            'early_leaving' => $early_leaving,
+                            'total_work_hour' => $total_work_hour,
+                        ]);
+                    }
                 }
             }
 
@@ -253,6 +571,10 @@ class AttendanceController extends Controller
             return response()->json(['message' => 'Failed to fetch attendance logs'], 500);
         }
     }
+
+
+
+
     private function calculateLateTime($clock_in, $date)
     {
         // Office start time is 9:00 AM
@@ -711,8 +1033,6 @@ class AttendanceController extends Controller
 
 
 
-
-
     // Total Present and Absent
     public function getTotalPresentAndAbsent()
     {
@@ -826,9 +1146,15 @@ class AttendanceController extends Controller
     {
         try {
             // Validate the request
+
             $validatedData = $request->validate([
                 'late_reason' => 'nullable|string|max:255',
+                'late_type' => 'required_with:late_reason|string|max:255',
+            ],[
+                'late_type.required_with' => 'Late type is required when a late reason is provided.',
             ]);
+
+
 
             $user = auth()->user(); // Get the logged-in user
             $employee = $user->employee; // Get the employee record
@@ -849,7 +1175,8 @@ class AttendanceController extends Controller
                 if ($attendance->clock_in) {
                     // If Clock In already recorded, update only late reason
                     $attendance->update([
-                        'clock_in_reason' => $validatedData['late_reason'] ?? $attendance->clock_in_reason
+                        'clock_in_reason' => $validatedData['late_reason'] ?? $attendance->clock_in_reason,
+                        'late_type' => !empty($validatedData['late_type']) ? $validatedData['late_type'] : $attendance->late_type,
                     ]);
                     return $this->response(true, 'Late reason updated successfully', $attendance, 200);
                 } else {
@@ -870,6 +1197,7 @@ class AttendanceController extends Controller
                         'clock_in' => $clockInTime24,
                         'clock_in_12hr' => $clockInTime,
                         'late' => $late,
+                        'late_type' => $validatedData['late_type']?? null,
                         'clock_in_reason' => $validatedData['late_reason'] ?? null,
                         'status' => 'Present',
                     ]);
@@ -1266,18 +1594,26 @@ class AttendanceController extends Controller
 
         // Calculate Total Fridays (Weekends)
         $totalFridays = 0;
+        $fridays = [];
         for ($date = clone $startDate; $date <= $endDate; $date->addDay()) {
             if ($date->format('w') == 5) { // '5' means Friday in PHP (Sunday = 0)
                 $totalFridays++;
+                $fridays[] = $date->format('Y-m-d');
             }
         }
 
         // Fetch Total Holidays
-        $totalHolidays = DB::table('holidays')
+        $holidayDates = DB::table('holidays')
             ->whereBetween('date', [$startDate, $endDate])
-            ->count();
+            ->pluck('date')
+            ->toArray();
 
-        // Fetch Employee Attendance Summary (Updated total_absent Calculation)
+        $totalHolidays = count($holidayDates);
+
+        // Merge holidays and fridays to get all non-working special dates
+        $specialDates = array_unique(array_merge($holidayDates, $fridays));
+
+        // Fetch Attendance Summary
         $summary = Attendance::where('employee_id', $employee_id)
             ->whereYear('date', $year)
             ->whereMonth('date', $month)
@@ -1285,7 +1621,7 @@ class AttendanceController extends Controller
             COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
             COUNT(CASE
                 WHEN status = 'Absent'
-                AND DATE_FORMAT(date, '%w') NOT IN (5)  -- Exclude Fridays (Friday = 5)
+                AND DATE_FORMAT(date, '%w') NOT IN (5)
                 AND date NOT IN (SELECT date FROM holidays WHERE date BETWEEN ? AND ?)
             THEN 1 END) as total_absent,
             COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
@@ -1295,13 +1631,9 @@ class AttendanceController extends Controller
         // Total Working Days (Excluding Fridays and Holidays)
         $totalWorkingDays = (int)($totalDays - $totalFridays - $totalHolidays);
 
-        // Calculate Total Work on Holidays
+        // Calculate Total Work on Holidays or Fridays
         $totalWorkOnHolidays = Attendance::where('employee_id', $employee_id)
-            ->whereIn('date', function ($query) use ($startDate, $endDate) {
-                $query->select('date')
-                    ->from('holidays')
-                    ->whereBetween('date', [$startDate, $endDate]);
-            })
+            ->whereIn('date', $specialDates)
             ->where('status', 'Present')
             ->count();
 
@@ -1318,6 +1650,7 @@ class AttendanceController extends Controller
             ],
         ], 200);
     }
+
 
 
 
@@ -1634,6 +1967,169 @@ class AttendanceController extends Controller
 
 
 
+//Reports
+
+
+    public function employeeAttendanceLeaveReport(Request $request)
+    {
+        $request->validate([
+            'start_date' => 'required|date',
+            'end_date' => 'required|date|after_or_equal:start_date'
+        ]);
+
+        $startDate = Carbon::parse($request->start_date)->startOfDay();
+        $endDate = Carbon::parse($request->end_date)->endOfDay();
+
+        $employees = Employee::all();
+
+        $report = $employees->map(function ($employee) use ($startDate, $endDate) {
+            // Fetch Attendance
+            $attendances = Attendance::where('employee_id', $employee->id)
+                ->whereBetween('date', [$startDate, $endDate])
+                ->get();
+
+            $onTimeLogin = 0;
+            $totalLate = 0;
+            $lateTypes = [];
+
+            foreach ($attendances as $att) {
+                if (!$att->clock_in) continue;
+
+                $shiftTime = Carbon::parse('09:00:00');
+                $clockIn = Carbon::parse($att->clock_in);
+                $diffInMinutes = $shiftTime->diffInMinutes($clockIn, false);
+
+                if ($diffInMinutes <= 0) {
+                    $onTimeLogin++;
+                } else {
+                    $totalLate++;
+                    $reason = $att->late_type ?? 'Without Informing';
+
+                    $formattedLate = $diffInMinutes >= 60
+                        ? floor($diffInMinutes / 60) . 'h ' . ($diffInMinutes % 60) . 'm'
+                        : intval(round($diffInMinutes)) . 'm';
+
+                    if (!isset($lateTypes[$reason])) {
+                        $lateTypes[$reason] = [
+                            'count' => 1,
+                            'minutes' => [$formattedLate]
+                        ];
+                    } else {
+                        $lateTypes[$reason]['count']++;
+                        $lateTypes[$reason]['minutes'][] = $formattedLate;
+                    }
+                }
+            }
+
+
+            // Fetch Approved Leave Requests
+            $leaveRequests = LeaveRequest::where('employee_id', $employee->id)
+                ->where('status', 'Approved')
+                ->where(function ($query) use ($startDate, $endDate) {
+                    $query->whereBetween('start_date', [$startDate, $endDate])
+                        ->orWhereBetween('end_date', [$startDate, $endDate]);
+                })
+                ->get();
+
+            $casualLeave = 0;
+            $sickLeave = 0;
+            $exchangeLeave = 0;
+
+            foreach ($leaveRequests as $leave) {
+                $leaveDays = Carbon::parse($leave->start_date)->diffInDays(Carbon::parse($leave->end_date)) + 1;
+
+                if ($leave->leave_type === 'Casual Leave' || $leave->leave_type === 'CL') {
+                    $casualLeave += $leaveDays;
+                } elseif ($leave->leave_type === 'Sick Leave' || $leave->leave_type === 'SL') {
+                    $sickLeave += $leaveDays;
+                }elseif ($leave->leave_type === 'Exchange Leave' || $leave->leave_type === 'EL') {
+                    $exchangeLeave += $leaveDays;
+                }
+            }
+
+            $totalLeave = $casualLeave + $sickLeave;
+
+            // Monthly Leave Calculation
+            $startMonth = Carbon::parse($startDate)->startOfMonth();
+            $endMonth = Carbon::parse($endDate)->startOfMonth();
+            $monthsBetween = $startMonth->diffInMonths($endMonth) + 1;
+
+            $allowedCL = $monthsBetween * 1;
+            $allowedSL = $monthsBetween * 1;
+            $allowedLeave = $allowedCL + $allowedSL;
+
+            $totalCarryForward = $allowedLeave - $totalLeave;
+
+
+            // Calculate Total Days in the Month
+            $totalDays = $startDate->diffInDays($endDate) + 1;
+
+            // Calculate Total Fridays (Weekends)
+            $totalFridays = 0;
+            $fridays = [];
+            for ($date = clone $startDate; $date <= $endDate; $date->addDay()) {
+                if ($date->format('w') == 5) { // '5' means Friday in PHP (Sunday = 0)
+                    $totalFridays++;
+                    $fridays[] = $date->format('Y-m-d');
+                }
+            }
+
+            // Fetch Total Holidays
+            $holidayDates = DB::table('holidays')
+                ->whereBetween('date', [$startDate, $endDate])
+                ->pluck('date')
+                ->toArray();
+
+            $totalHolidays = count($holidayDates);
+
+            // Merge holidays and fridays to get all non-working special dates
+            $specialDates = array_unique(array_merge($holidayDates, $fridays));
+
+
+            // Total Working Days (Excluding Fridays and Holidays)
+            $totalWorkingDays = (int)($totalDays - $totalFridays - $totalHolidays);
+
+
+
+            // Calculate Total Work on Holidays or Fridays
+            $totalWorkOnHolidays = Attendance::where('employee_id', $employee->id)
+                ->whereIn('date', $specialDates)
+                ->where('status', 'Present')
+                ->count();
+
+
+            return [
+                'employee_id' => $employee->id,
+                'emp_id' => $employee->emp_id,
+                'name' => $employee->first_name . ' ' . $employee->last_name,
+                'ontime_login' => $onTimeLogin,
+                'total_late' => $totalLate,
+                'late_types' => $lateTypes,
+                'casual_leave' => $casualLeave,
+                'sick_leave' => $sickLeave,
+                'total_leave' => $totalLeave,
+                'exchange_leave' => $exchangeLeave,
+                'total_carry_forward' => $totalCarryForward,
+                'total_working_days' => $totalWorkingDays,
+                'total_holidays' => $totalHolidays,
+                'total_work_on_holidays' => $totalWorkOnHolidays,
+            ];
+        });
+
+        return response()->json([
+            'start_date' => $startDate->toDateString(),
+            'end_date' => $endDate->toDateString(),
+            'report' => $report
+        ]);
+    }
+
+
+
+
+
+
+
+
 
 
 
@@ -1645,3 +2141,5 @@ class AttendanceController extends Controller
 
 
 }
+
+

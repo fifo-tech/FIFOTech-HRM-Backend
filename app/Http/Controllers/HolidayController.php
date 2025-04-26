@@ -70,15 +70,32 @@ class HolidayController extends Controller
 
         return response()->json(['message' => 'Holiday deleted successfully']);
     }
+
+
+//    public function upcomingHolidays()
+//    {
+//        $currentMonth = Carbon::now()->month;
+//        $currentYear = Carbon::now()->year;
+//        $today = Carbon::today();
+//
+//        $holidays = Holiday::whereYear('date', $currentYear)
+//            ->whereMonth('date', $currentMonth)
+//            ->where('date', '>=', $today) // Only future dates
+//            ->orderBy('date')
+//            ->get();
+//
+//        return response()->json([
+//            'success' => true,
+//            'upcoming_holidays' => $holidays,
+//        ]);
+//    }
+
     public function upcomingHolidays()
     {
-        $currentMonth = Carbon::now()->month;
-        $currentYear = Carbon::now()->year;
         $today = Carbon::today();
+        $endDate = Carbon::today()->addDays(30);
 
-        $holidays = Holiday::whereYear('date', $currentYear)
-            ->whereMonth('date', $currentMonth)
-            ->where('date', '>=', $today) // Only future dates
+        $holidays = Holiday::whereBetween('date', [$today, $endDate])
             ->orderBy('date')
             ->get();
 
@@ -87,4 +104,8 @@ class HolidayController extends Controller
             'upcoming_holidays' => $holidays,
         ]);
     }
+
+
+
+
 }

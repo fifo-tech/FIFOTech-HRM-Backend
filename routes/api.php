@@ -14,6 +14,7 @@ use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LeaveRequestController;
+use App\Http\Controllers\LateTypeController;
 
 
 
@@ -85,8 +86,14 @@ Route::middleware([
     Route::get('/self-monthly-attendance/{id}', [AttendanceController::class, 'getTotalCurrentMonthAttendance']);
     Route::get('/self-yearly-attendance/{id}', [AttendanceController::class, 'getTotalYearlySelfAttendance']);
     Route::get('/filter-attendance-list', [AttendanceController::class, 'filterAttendanceListForAllTime']);
+    Route::get('/employee-attendance-leave-report', [AttendanceController::class, 'employeeAttendanceLeaveReport']);
 
-
+    //Late Types API
+    Route::get('/late-types-list', [LateTypeController::class, 'lateTypesList']);
+    Route::post('/create-late-type', [LateTypeController::class, 'createLateType']);
+    Route::post('/edit-late-type/{id}', [LateTypeController::class, 'updateLateType']);
+    Route::get('/late-type-details/{id}', [LateTypeController::class, 'getLateTypeDetails']);
+    Route::delete('/delete-leave-type/{id}', [LateTypeController::class, 'deleteLateType']);
 
     //Leave Request API
     Route::get('/leave-types-list', [LeaveTypeController::class, 'leaveTypesList']);
