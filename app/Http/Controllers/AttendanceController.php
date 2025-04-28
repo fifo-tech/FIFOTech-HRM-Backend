@@ -1980,7 +1980,8 @@ class AttendanceController extends Controller
         $startDate = Carbon::parse($request->start_date)->startOfDay();
         $endDate = Carbon::parse($request->end_date)->endOfDay();
 
-        $employees = Employee::all();
+//        $employees = Employee::all();
+        $employees = Employee::with('user:id,profile_photo_path')->get();
 
         $report = $employees->map(function ($employee) use ($startDate, $endDate) {
             // Fetch Attendance
@@ -2101,6 +2102,11 @@ class AttendanceController extends Controller
             return [
                 'employee_id' => $employee->id,
                 'emp_id' => $employee->emp_id,
+                'phone_num' => $employee->phone_num,
+                'email' => $employee->email,
+                'image' => $employee->user?->profile_photo_path
+                    ? url('storage/' . $employee->user->profile_photo_path)
+                    : null,
                 'name' => $employee->first_name . ' ' . $employee->last_name,
                 'ontime_login' => $onTimeLogin,
                 'total_late' => $totalLate,
