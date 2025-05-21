@@ -15,6 +15,9 @@ use App\Http\Controllers\HolidayController;
 use App\Http\Controllers\LeaveTypeController;
 use App\Http\Controllers\LeaveRequestController;
 use App\Http\Controllers\LateTypeController;
+use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\SalaryStructureController;
+use App\Http\Controllers\PayrollAdjustmentController;
 
 
 
@@ -37,10 +40,10 @@ Route::middleware([
 
     // Role  API
     Route::post('/create-role',[RoleController::class,'createRole']);
-    Route::get('/roles-list', [RoleController::class, 'getRoles']); // Fetch all roles
-    Route::get('/role-details/{id}', [RoleController::class, 'getRoleById']); // Fetch a single role by ID
-    Route::post('/update-role/{id}', [RoleController::class, 'updateRole']); // Update a role
-    Route::delete('/delete-role/{id}', [RoleController::class, 'deleteRole']); // Delete a role
+    Route::get('/roles-list', [RoleController::class, 'getRoles']);
+    Route::get('/role-details/{id}', [RoleController::class, 'getRoleById']);
+    Route::post('/update-role/{id}', [RoleController::class, 'updateRole']);
+    Route::delete('/delete-role/{id}', [RoleController::class, 'deleteRole']);
 
 
     // Department API
@@ -130,7 +133,7 @@ Route::middleware([
 
 
 
-    //work Updates API
+    //Work Updates API
     Route::get('/get-daily-work-update/{id}', [AttendanceController::class, 'getWorkUpdateByDate']);
     Route::post('/update-daily-works/{id}', [AttendanceController::class, 'updateDailyWorksByDate']);
 
@@ -161,6 +164,29 @@ Route::middleware([
     // Logout route
     Route::delete('/logout', [UserController::class, 'logout']);
     Route::post('/change-password', [UserController::class, 'changePassword']);
+
+    // Payrolls
+    Route::get('/payrolls', [PayrollController::class, 'payrolls']);
+    Route::post('/create-payroll', [PayrollController::class, 'createPayroll']);
+    Route::get('/payroll-details/{id}', [PayrollController::class, 'getPayrollDetails']);
+    Route::post('/update-payroll/{id}', [PayrollController::class, 'updatePayroll']);
+    Route::delete('/delete-payroll/{id}', [PayrollController::class, 'deletePayroll']);
+
+    // Salary Structure
+    Route::get('/salary-structure-list', [SalaryStructureController::class, 'salaryStructureList']);
+    Route::post('/create-salary-structure', [SalaryStructureController::class, 'createSalaryStructure']);
+    Route::get('/salary-structure-details/{id}', [SalaryStructureController::class, 'getSalaryStructureDetails']);
+    Route::put('/update-salary-structure/{id}', [SalaryStructureController::class, 'updateSalaryStructure']);
+    Route::delete('/delete-salary-structure/{id}', [SalaryStructureController::class, 'deleteSalaryStructure']);
+
+
+    // Payroll Adjustments
+    Route::get('/payroll-adjustments-list', [PayrollAdjustmentController::class, 'payrollAdjustmentsList']);
+    Route::post('/create-payroll-adjustment', [PayrollAdjustmentController::class, 'createPayrollAdjustment']);
+    Route::get('/payroll-adjustment-details/{id}', [PayrollAdjustmentController::class, 'getPayrollAdjustmentDetails']);
+    Route::put('/update-payroll-adjustment/{id}', [PayrollAdjustmentController::class, 'updatePayrollAdjustment']);
+    Route::delete('/delete-payroll-adjustment/{id}', [PayrollAdjustmentController::class, 'deletePayrollAdjustment']);
+
 
 
 

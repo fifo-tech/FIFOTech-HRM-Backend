@@ -1299,13 +1299,13 @@ class AttendanceController extends Controller
             }
 
             // find out first and last date of current month
-            $startOfMonth = now()->startOfMonth()->format('Y-m-d');
-            $endOfMonth = now()->endOfMonth()->format('Y-m-d');
+//            $startOfMonth = now()->startOfMonth()->format('Y-m-d');
+//            $endOfMonth = now()->endOfMonth()->format('Y-m-d');
 
             // find out current month attendance record (Descending Order)
             $attendances = Attendance::with('employee')
                 ->where('employee_id', $employee->id)
-                ->whereBetween('date', [$startOfMonth, $endOfMonth])
+//                ->whereBetween('date', [$startOfMonth, $endOfMonth])
                 ->orderBy('date', 'desc') //  DESCENDING ORDER (Latest First)
                 ->get();
 
@@ -1981,7 +1981,10 @@ class AttendanceController extends Controller
         $endDate = Carbon::parse($request->end_date)->endOfDay();
 
 //        $employees = Employee::all();
-        $employees = Employee::with('user:id,profile_photo_path')->get();
+        $employees = Employee::with('user:id,profile_photo_path')
+            ->whereNotNull('emp_id')
+            ->get();
+
 
         $report = $employees->map(function ($employee) use ($startDate, $endDate) {
             // Fetch Attendance
