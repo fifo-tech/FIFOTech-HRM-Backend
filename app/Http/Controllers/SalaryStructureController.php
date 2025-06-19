@@ -65,6 +65,10 @@ class SalaryStructureController extends Controller
                 'effective_date'  => 'required|date',
             ]);
 
+            // Set default values for nullable fields if null
+            $validated['monthly_deduction'] = $validated['monthly_deduction'] ?? 0;
+            $validated['tax_percentage'] = $validated['tax_percentage'] ?? 0;
+
             $structure = SalaryStructure::create($validated);
 
             return response()->json([

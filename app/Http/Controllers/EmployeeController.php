@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Employee;
+use App\Models\Holiday;
 use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -574,7 +575,9 @@ class EmployeeController extends Controller
     {
         try {
             // Count employees where emp_id is not null
-            $employeeCount = Employee::whereNotNull('emp_id')->count();
+            $employeeCount = Employee::whereNotNull('emp_id')
+                ->withActiveUser()
+                ->count();
 //            $employeeCount = Employee::all()->count();
 
             // Return the count in the response
@@ -769,8 +772,9 @@ class EmployeeController extends Controller
     public function getDepartmentWiseEmployeeIds()
     {
         $employees = Employee::with('department:id,name') // Fetch department name
-        ->select('dept_id', 'emp_id', 'first_name', 'last_name')
+        ->select('id','dept_id', 'emp_id', 'first_name', 'last_name')
             ->orderBy('dept_id')
+            ->withActiveUser()
             ->get()
             ->groupBy('dept_id');
 
@@ -783,9 +787,10 @@ class EmployeeController extends Controller
                 'department' => $departmentName,
                 'employees' => $employeeList->map(function ($employee) {
                     return [
+                        'id' => $employee->id,
                         'emp_id' => $employee->emp_id,
-//                        'first_name' => $employee->first_name,
-//                        'last_name' => $employee->last_name
+                        'first_name' => $employee->first_name,
+                        'last_name' => $employee->last_name
                     ];
                 }),
             ];
@@ -844,31 +849,101 @@ class EmployeeController extends Controller
 //        }
 //    }
 
+//    public function getUpcomingBirthdays()
+//    {
+//        try {
+//            // Get current date
+//            $currentDate = Carbon::now();
+//            $currentYear = $currentDate->year;
+//            $currentMonth = $currentDate->month;
+//            $currentDay = $currentDate->day;
+//
+//            // Fetch employees with birthdays in the current month
+//            $employees = Employee::with([
+//                'user' => function ($query) {
+//                    $query->select('id', 'first_name', 'last_name', 'email', 'profile_photo_path'); // Selecting necessary columns
+//                }
+//            ])
+//                ->whereMonth('date_of_birth', $currentMonth)
+//                ->whereDay('date_of_birth', '>=', $currentDay) // Include only upcoming birthdays
+//                ->orderBy('date_of_birth', 'asc')
+//                ->get(['id', 'user_id', 'phone_num', 'date_of_birth']); // Selecting only required fields from employees
+//
+//            // Format the data for response
+//            $employees = $employees->map(function ($employee) use ($currentYear) {
+//                // Extract month and day from date_of_birth
+//                $dob = Carbon::parse($employee->date_of_birth);
+//                $formattedDob = Carbon::create($currentYear, $dob->month, $dob->day)->toDateString(); // Set current year
+//
+//                return [
+//                    'id' => $employee->id,
+//                    'first_name' => optional($employee->user)->first_name,
+//                    'last_name' => optional($employee->user)->last_name,
+//                    'email' => optional($employee->user)->email,
+//                    'phone_num' => $employee->phone_num,
+//                    'date_of_birth' => $formattedDob, // Only change year to current year
+//                    'profile_photo_path' => optional($employee->user)->profile_photo_path
+//                        ? url('storage/' . $employee->user->profile_photo_path) // Construct full URL
+//                        : null,
+//                ];
+//            });
+//
+//            return response()->json([
+//                'success' => true,
+//                'message' => 'Upcoming birthdays fetched successfully',
+//                'data' => $employees
+//            ], 200);
+//        } catch (\Exception $e) {
+//            return response()->json([
+//                'success' => false,
+//                'message' => 'Something went wrong',
+//                'error' => $e->getMessage(),
+//            ], 500);
+//        }
+//    }
+
     public function getUpcomingBirthdays()
     {
         try {
-            // Get current date
             $currentDate = Carbon::now();
             $currentYear = $currentDate->year;
             $currentMonth = $currentDate->month;
             $currentDay = $currentDate->day;
 
-            // Fetch employees with birthdays in the current month
+            // Fetch holidays in the current month
+            $holidays = Holiday::whereMonth('date', $currentMonth)
+                ->whereYear('date', $currentYear)
+                ->pluck('date')
+                ->map(function ($date) {
+                    return Carbon::parse($date)->toDateString();
+                })
+                ->toArray();
+
+            // Calculate last working day (not Friday or a holiday)
+            $lastDay = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth();
+            while (
+                $lastDay->isFriday() ||
+                in_array($lastDay->toDateString(), $holidays)
+            ) {
+                $lastDay->subDay();
+            }
+            $celebrationDate = $lastDay->toDateString();
+
+            // Fetch upcoming birthdays in current month from today onwards
             $employees = Employee::with([
                 'user' => function ($query) {
-                    $query->select('id', 'first_name', 'last_name', 'email', 'profile_photo_path'); // Selecting necessary columns
+                    $query->select('id', 'first_name', 'last_name', 'email', 'profile_photo_path');
                 }
             ])
                 ->whereMonth('date_of_birth', $currentMonth)
-                ->whereDay('date_of_birth', '>=', $currentDay) // Include only upcoming birthdays
+                ->whereDay('date_of_birth', '>=', $currentDay)
                 ->orderBy('date_of_birth', 'asc')
-                ->get(['id', 'user_id', 'phone_num', 'date_of_birth']); // Selecting only required fields from employees
+                ->get(['id', 'user_id', 'phone_num', 'date_of_birth']);
 
-            // Format the data for response
-            $employees = $employees->map(function ($employee) use ($currentYear) {
-                // Extract month and day from date_of_birth
+            // Format employee data
+            $employees = $employees->map(function ($employee) use ($currentYear, $celebrationDate) {
                 $dob = Carbon::parse($employee->date_of_birth);
-                $formattedDob = Carbon::create($currentYear, $dob->month, $dob->day)->toDateString(); // Set current year
+                $formattedDob = Carbon::create($currentYear, $dob->month, $dob->day)->toDateString();
 
                 return [
                     'id' => $employee->id,
@@ -876,10 +951,11 @@ class EmployeeController extends Controller
                     'last_name' => optional($employee->user)->last_name,
                     'email' => optional($employee->user)->email,
                     'phone_num' => $employee->phone_num,
-                    'date_of_birth' => $formattedDob, // Only change year to current year
+                    'date_of_birth' => $formattedDob,
                     'profile_photo_path' => optional($employee->user)->profile_photo_path
-                        ? url('storage/' . $employee->user->profile_photo_path) // Construct full URL
+                        ? url('storage/' . $employee->user->profile_photo_path)
                         : null,
+                    'celebration_date' => $celebrationDate,
                 ];
             });
 

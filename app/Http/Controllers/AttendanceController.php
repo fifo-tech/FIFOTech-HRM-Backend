@@ -511,8 +511,30 @@ class AttendanceController extends Controller
             foreach ($attendanceRecords as $employee_id => $dates) {
                 foreach ($dates as $date => $timestamps) {
                     sort($timestamps);
-                    $clock_in = $timestamps[0];
-                    $clock_out = count($timestamps) > 1 ? $timestamps[count($timestamps) - 1] : null;
+//                    $clock_in = $timestamps[0];
+//                    $clock_out = count($timestamps) > 1 ? $timestamps[count($timestamps) - 1] : null;
+
+
+// Multiple timestamps
+                    if (count($timestamps) > 1) {
+                        $clock_in = $timestamps[0];
+                        $clock_out = $timestamps[count($timestamps) - 1];
+                    } elseif (count($timestamps) === 1) {
+                        $timestamp = Carbon::parse($timestamps[0]);
+                        $six_pm = Carbon::parse($date . ' 18:00:00');
+
+                        if ($timestamp->greaterThanOrEqualTo($six_pm)) {
+                            $clock_in = null;
+                            $clock_out = $timestamp->format('Y-m-d H:i:s');
+                        } else {
+                            $clock_in = $timestamp->format('Y-m-d H:i:s');
+                            $clock_out = null;
+                        }
+                    } else {
+                        $clock_in = null;
+                        $clock_out = null;
+                    }
+
 
                     $late = $this->calculateLateTime($clock_in, $date);
                     $early_leaving = $this->calculateEarlyLeavingTime($clock_out, $date);
@@ -632,6 +654,9 @@ class AttendanceController extends Controller
                 }
             ])
                 ->where('date', $date)
+                ->whereHas('employee', function ($query) {
+                    $query->withActiveUser(); //  Apply the scope here(Only active employees)
+                })
                 ->get();
 
             // Customize the response structure
@@ -771,7 +796,29 @@ class AttendanceController extends Controller
             ])
                 ->where('date', $date)
                 ->where('status', 'present') // Filter only present employees
+                ->whereHas('employee', function ($query) {
+                    $query->withActiveUser(); //  Apply the scope here(Only active employees)
+                })
                 ->get();
+//            $attendances = Attendance::where('date', $date)
+//                ->where('status', 'present') //  Only present employees
+//                ->whereHas('employee', function ($query) {
+//                    $query->withActiveUser(); //  Apply the scope here(Only active employees)
+//                })
+//                ->with([
+//                    'employee' => function ($query) {
+//                        $query->select('id', 'user_id', 'first_name', 'last_name', 'email', 'phone_num', 'emp_id')
+//                            ->with([
+//                                'user' => function ($userQuery) {
+//                                    $userQuery->select('id', 'profile_photo_path');
+//                                }
+//                            ]);
+//                    }
+//                ])
+//                ->get();
+
+
+
 
             // Customize the response structure
             $customizedResponse = $attendances->map(function ($attendance) {
@@ -840,6 +887,9 @@ class AttendanceController extends Controller
             ])
                 ->where('date', $date)
                 ->where('status', 'absent') // Filter only absent employees
+                ->whereHas('employee', function ($query) {
+                    $query->withActiveUser(); //  Apply the scope here(Only active employees)
+                })
                 ->get();
 
             // Customize the response structure
@@ -1051,6 +1101,9 @@ class AttendanceController extends Controller
                 ->where('attendances.status', 'Present')
                 ->whereDate('attendances.date', $today) // Ensures we only count today's attendance
                 ->whereNotNull('employees.emp_id') // Ensure emp_id is not null
+                ->whereHas('employee', function ($query) {
+                    $query->withActiveUser(); //  Apply the scope here(Only active employees)
+                })
                 ->count();
 
 
@@ -1064,6 +1117,9 @@ class AttendanceController extends Controller
                 ->where('attendances.status', 'Absent')
                 ->whereDate('attendances.date', $today) // Ensures we only count today's attendance
                 ->whereNotNull('employees.emp_id') // Ensure emp_id is not null
+                ->whereHas('employee', function ($query) {
+                    $query->withActiveUser(); //  Apply the scope here(Only active employees)
+                })
                 ->count();
 
 
@@ -1426,6 +1482,9 @@ class AttendanceController extends Controller
                 ->where('date', $date)
                 ->whereNotNull('clock_in') // Only include employees who clocked in
 //                ->whereNull('clock_out')   // Exclude employees who have clocked out
+                ->whereHas('employee', function ($query) {
+                    $query->withActiveUser(); //  Apply the scope here(Only active employees)
+                })
                 ->get();
 
             // Group attendance records by department
@@ -1914,6 +1973,9 @@ class AttendanceController extends Controller
                     return $query->whereBetween('date', [$validatedData['start_date'], $validatedData['end_date']]);
                 })
                 ->orderBy('date', 'desc') // Order by date in descending order
+                ->whereHas('employee', function ($query) {
+                    $query->withActiveUser(); //  Apply the scope here(Only active employees)
+                })
                 ->get();
 
             // Customize the response structure
@@ -1981,9 +2043,19 @@ class AttendanceController extends Controller
         $endDate = Carbon::parse($request->end_date)->endOfDay();
 
 //        $employees = Employee::all();
+//        $employees = Employee::with('user:id,profile_photo_path')
+//            ->whereNotNull('emp_id')
+//            ->whereHas('user', function ($query) {
+//                $query->where('active_status', 1);
+//            })
+//            ->get();
+
         $employees = Employee::with('user:id,profile_photo_path')
             ->whereNotNull('emp_id')
+            ->withActiveUser()
             ->get();
+
+
 
 
         $report = $employees->map(function ($employee) use ($startDate, $endDate) {

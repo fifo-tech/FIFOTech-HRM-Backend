@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Illuminate\Database\Query\Builder;
 
 class Employee extends Model
 {
@@ -84,6 +85,41 @@ class Employee extends Model
     {
         return $this->hasMany(Document::class);
     }
+    // app/Models/Employee.php
+
+//    public function scopeActive($query)
+//    {
+//        return $query->where('status', 'active');
+//    }
+
+//    here shows how to call only active employees
+//    $employees = Employee::active()->get();
+
+//    protected static function booted()
+//    {
+//        static::addGlobalScope('active', function (Builder $builder) {
+//            $builder->where('status', 'active');
+//        });
+//    }
+
+//    public function scopeActiveUser($query)
+//    {
+//        return $query->whereHas('user', function ($q) {
+//            $q->where('status', 'active');
+//        });
+//    }
+
+
+
+    public function scopeWithActiveUser($query)
+    {
+        return $query->whereHas('user', function ($q) {
+            $q->where('active_status', 1);
+        });
+    }
+
+
+
 
 
 
