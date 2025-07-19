@@ -5,9 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Notifications\Notifiable;
 
 class Employee extends Model
 {
+    use Notifiable;
 
     protected $fillable = [
         'user_id',

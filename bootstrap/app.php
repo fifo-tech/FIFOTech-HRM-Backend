@@ -43,6 +43,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('app:fetch-attendance-logs')
             ->timezone('Asia/Dhaka')
             ->everyMinute(); // Runs every minute
+        // New: Check late count and notify employees if late > 2
+        $schedule->command('attendance:check-late-count')
+            ->timezone('Asia/Dhaka')
+            ->dailyAt('18:00'); // You can change the time as needed
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

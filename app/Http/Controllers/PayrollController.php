@@ -91,8 +91,10 @@ class PayrollController extends Controller
             $month = $request->query('month'); // Example: '2025-06'
 
             $query = Payroll::with([
-                'employee:id,emp_id,phone_num,user_id',
+                'employee:id,emp_id,phone_num,user_id,designation_id,dept_id,bank_account_number',
                 'employee.user:id,first_name,last_name,email,profile_photo_path',
+                'employee.designation:id,name',
+                'employee.department:id,name',
                 'salaryStructure:id,employee_id,basic_salary,allowance,monthly_deduction,tax_percentage',
             ]);
 
@@ -111,6 +113,9 @@ class PayrollController extends Controller
                     'id' => $item->id,
                     'employee_id' => $item->employee_id,
                     'emp_id' => $item->employee->emp_id ?? null,
+                    'bank_account_number' => $item->employee->bank_account_number ?? null,
+                    'designation_name' => $item->employee->designation->name ?? null,
+                    'department_name' => $item->employee->department->name ?? null,
                     'first_name' => $item->employee->user->first_name ?? null,
                     'last_name' => $item->employee->user->last_name ?? null,
                     'email' => $item->employee->user->email ?? null,

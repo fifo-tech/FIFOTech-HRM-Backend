@@ -27,6 +27,8 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'first_name',
+        'last_name',
         'email',
         'password',
     ];
@@ -82,5 +84,6 @@ class User extends Authenticatable
     {
         return $this->hasOne(Employee::class, 'user_id', 'id'); // Assuming 'user_id' in employees table
     }
+
 
 }

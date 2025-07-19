@@ -2,11 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\TestMail;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
+use App\Models\User;
+use App\Notifications\LeaveRequestNotification;
+use App\Notifications\LeaveStatusUpdateNotification;
+
 
 class LeaveRequestController extends Controller
 {
@@ -182,6 +188,30 @@ class LeaveRequestController extends Controller
                 'leave_reason' => $request->leave_reason,
                 'leave_attachment' => $leaveAttachmentPath, // Save the file path if uploaded
             ]);
+
+            // Notify HR (handle notification errors separately)
+            try {
+                $admins = User::where('role_id', '2')->get();
+
+                foreach ($admins as $admin) {
+                    $admin->notify(new LeaveRequestNotification([
+                        'id' => $leaveRequest->id,
+                        'employee_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+                        'from_date' => $leaveRequest->start_date,
+                        'to_date' => $leaveRequest->end_date,
+                        'leave_reason' => $leaveRequest->leave_reason,
+                    ]));
+                }
+            } catch (\Exception $notifyError) {
+                \Log::error('Leave notification failed: ' . $notifyError->getMessage());
+                // Optional: you can include this info in response if you want
+            }
+
+            // Practice
+//            $code = rand(100000, 999999);
+//            $userName = "Mostafiz";
+
+//            Mail::to('mostafizurrahmanripon03@gmail.com')->send(new TestMail($code, $userName));
 
             return response()->json([
                 'success' => true,
@@ -701,7 +731,7 @@ class LeaveRequestController extends Controller
         try {
             // Validate the request
             $request->validate([
-                'status' => 'required|in:Pending,Approved,Rejected', // Ensure valid status
+                'status' => 'required|in:Pending,Approved,Rejected',
             ]);
 
             // Fetch the logged-in user
@@ -733,6 +763,18 @@ class LeaveRequestController extends Controller
             $leaveRequest->approved_by = $user->first_name . ' ' . $user->last_name;
             $leaveRequest->updated_at = now();
             $leaveRequest->save();
+
+            if ($employeeUser) {
+                $employeeName = $employeeUser->name ?? ($employeeUser->first_name . ' ' . $employeeUser->last_name);
+
+                $employeeUser->notify(new LeaveStatusUpdateNotification(
+                    $leaveRequest,
+                    $leaveRequest->status,
+                    $leaveRequest->approved_by,
+                    $employeeName
+                ));
+            }
+
 
             return response()->json([
                 'success' => true,

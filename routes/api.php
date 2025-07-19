@@ -18,6 +18,7 @@ use App\Http\Controllers\LateTypeController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\SalaryStructureController;
 use App\Http\Controllers\PayrollAdjustmentController;
+use App\Http\Controllers\NotificationController;
 
 
 
@@ -188,7 +189,10 @@ Route::middleware([
     Route::delete('/delete-payroll-adjustment/{id}', [PayrollAdjustmentController::class, 'deletePayrollAdjustment']);
 
 
-
+    //Notifications
+    Route::get('/notifications', [NotificationController::class, 'index']);
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
 
 
 
