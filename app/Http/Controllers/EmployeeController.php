@@ -932,13 +932,19 @@ class EmployeeController extends Controller
             // Fetch upcoming birthdays in current month from today onwards
             $employees = Employee::with([
                 'user' => function ($query) {
-                    $query->select('id', 'first_name', 'last_name', 'email', 'profile_photo_path');
+                    $query->select('id', 'first_name', 'last_name', 'email', 'profile_photo_path')
+                        ->where('active_status', true);
                 }
             ])
                 ->whereMonth('date_of_birth', $currentMonth)
                 ->whereDay('date_of_birth', '>=', $currentDay)
                 ->orderBy('date_of_birth', 'asc')
                 ->get(['id', 'user_id', 'phone_num', 'date_of_birth']);
+
+            // Filter only employees who have active users (in case relation returns null)
+            $employees = $employees->filter(function ($employee) {
+                return $employee->user !== null;
+            });
 
             // Format employee data
             $employees = $employees->map(function ($employee) use ($currentYear, $celebrationDate) {
@@ -957,7 +963,7 @@ class EmployeeController extends Controller
                         : null,
                     'celebration_date' => $celebrationDate,
                 ];
-            });
+            })->values(); // reset array keys
 
             return response()->json([
                 'success' => true,
@@ -972,6 +978,7 @@ class EmployeeController extends Controller
             ], 500);
         }
     }
+
 
 
 

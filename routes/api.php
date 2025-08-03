@@ -19,6 +19,8 @@ use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\SalaryStructureController;
 use App\Http\Controllers\PayrollAdjustmentController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\AnnouncementController;
+use App\Http\Controllers\PolicyController;
 
 
 
@@ -193,6 +195,21 @@ Route::middleware([
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead']);
+
+
+    //Announcement
+    Route::get('/announcements-list', [AnnouncementController::class, 'announcementsList']);
+    Route::post('/create-announcement', [AnnouncementController::class, 'createAnnouncement']);
+    Route::get('/announcement-details/{id}', [AnnouncementController::class, 'announcementDetails']);
+    Route::post('/edit-announcement/{id}', [AnnouncementController::class, 'editAnnouncement']);
+    Route::delete('/delete-announcement/{id}', [AnnouncementController::class, 'deleteAnnouncement']);
+
+    //Policy
+    Route::get('/policies-list', [PolicyController::class, 'policiesList']);
+    Route::post('/create-policy', [PolicyController::class, 'createPolicy']);
+    Route::get('/policy-details/{id}', [PolicyController::class, 'policyDetails']);
+    Route::post('/edit-policy/{id}', [PolicyController::class, 'editPolicy']);
+    Route::delete('/delete-policy/{id}', [PolicyController::class, 'deletePolicy']);
 
 
 

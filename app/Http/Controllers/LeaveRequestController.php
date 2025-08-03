@@ -599,7 +599,7 @@ class LeaveRequestController extends Controller
             $userId = $user->id; // Logged-in user ID
 
             // Check if the logged-in user is an HR Manager or Supervisor (role_id = 5)
-            if ($user->role_id == 5) {
+            if ($user->role_id == 5 || $user->role_id == 2) {
                 // Fetch leave requests for the department excluding the logged-in user's own leave request
                 $leaves = LeaveRequest::with(['employee' => function ($query) {
                     $query->select('id', 'first_name', 'last_name', 'email', 'phone_num', 'dept_id', 'emp_id', 'user_id')
