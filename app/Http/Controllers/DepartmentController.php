@@ -78,15 +78,43 @@ class DepartmentController extends Controller
 //    }
 
     // All Departments with total employees
+//    public function getDepartments(Request $request)
+//    {
+//        try {
+//            // Get all departments with employee count
+//            $departments = Department::select('id', 'name', 'head_name', 'created_at')
+//                ->withCount('employees') // Add employee count for each department
+//                ->get();
+//
+//            // Return success response with department data
+//            return $this->response(
+//                true,
+//                'Departments fetched successfully',
+//                $departments,
+//                200
+//            );
+//        } catch (\Exception $e) {
+//            // Handle any exceptions
+//            return $this->response(
+//                false,
+//                'Something went wrong',
+//                $e->getMessage(),
+//                500
+//            );
+//        }
+//    }
+
     public function getDepartments(Request $request)
     {
         try {
-            // Get all departments with employee count
             $departments = Department::select('id', 'name', 'head_name', 'created_at')
-                ->withCount('employees') // Add employee count for each department
+                ->withCount(['employees as employees_count' => function ($query) {
+                    $query->whereHas('user', function ($q) {
+                        $q->where('active_status', 1);
+                    });
+                }])
                 ->get();
 
-            // Return success response with department data
             return $this->response(
                 true,
                 'Departments fetched successfully',
@@ -94,7 +122,6 @@ class DepartmentController extends Controller
                 200
             );
         } catch (\Exception $e) {
-            // Handle any exceptions
             return $this->response(
                 false,
                 'Something went wrong',
@@ -103,6 +130,9 @@ class DepartmentController extends Controller
             );
         }
     }
+
+
+
 
 
 
