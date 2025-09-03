@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Department;
 use App\Models\LeaveRequest;
+use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
 use App\Models\Attendance;
 use App\Models\Employee;
@@ -1076,13 +1077,6 @@ class AttendanceController extends Controller
 
 
 
-
-
-
-
-
-
-
     // Total Present and Absent
     public function getTotalPresentAndAbsent()
     {
@@ -1648,40 +1642,47 @@ class AttendanceController extends Controller
         $startDate = Carbon::now()->startOfMonth();
         $endDate = Carbon::now()->endOfMonth();
 
-        // Calculate Total Days in the Month
+        // Total Days in the Month
         $totalDays = $startDate->diffInDays($endDate) + 1;
 
-        // Calculate Total Fridays (Weekends)
-        $totalFridays = 0;
+        // Step 1: Fridays (Weekend)
         $fridays = [];
         for ($date = clone $startDate; $date <= $endDate; $date->addDay()) {
-            if ($date->format('w') == 5) { // '5' means Friday in PHP (Sunday = 0)
-                $totalFridays++;
+            if ($date->format('w') == 5) { // Friday
                 $fridays[] = $date->format('Y-m-d');
             }
         }
 
-        // Fetch Total Holidays
-        $holidayDates = DB::table('holidays')
-            ->whereBetween('date', [$startDate, $endDate])
-            ->pluck('date')
-            ->map(function ($date) {
-                return Carbon::parse($date)->format('Y-m-d');
+        // Step 2: Holidays (date range support)
+        $holidays = DB::table('holidays')
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('start_date', [$startDate, $endDate])
+                    ->orWhereBetween('end_date', [$startDate, $endDate])
+                    ->orWhere(function ($q) use ($startDate, $endDate) {
+                        $q->where('start_date', '<=', $startDate)
+                            ->where('end_date', '>=', $endDate);
+                    });
             })
-            ->toArray();
+            ->get();
 
-        $totalHolidays = count($holidayDates);
+        $holidayDates = [];
+        foreach ($holidays as $holiday) {
+            $period = CarbonPeriod::create($holiday->start_date, $holiday->end_date);
+            foreach ($period as $date) {
+                $holidayDates[] = $date->toDateString();
+            }
+        }
+        $holidayDates = array_unique($holidayDates);
 
+        // Step 3: Merge Holidays + Fridays
         $commonCount = count(array_intersect($holidayDates, $fridays));
+        $totalHolidays = count($holidayDates);
+        $totalFridays = count($fridays);
 
-        // Total unique non-working days = holidays + fridays - overlap
-        $totalNonWorkingDays = $totalHolidays + count($fridays) - $commonCount;
-
-
-        // Merge holidays and fridays to get all non-working special dates
+        $totalNonWorkingDays = $totalHolidays + $totalFridays - $commonCount;
         $specialDates = array_unique(array_merge($holidayDates, $fridays));
 
-        // Fetch Attendance Summary
+        // Step 4: Attendance Summary
         $summary = Attendance::where('employee_id', $employee_id)
             ->whereYear('date', $year)
             ->whereMonth('date', $month)
@@ -1689,18 +1690,17 @@ class AttendanceController extends Controller
             COUNT(CASE WHEN status = 'Present' THEN 1 END) as total_present,
             COUNT(CASE
                 WHEN status = 'Absent'
-                AND DATE_FORMAT(date, '%w') NOT IN (5)
-                AND date NOT IN (SELECT date FROM holidays WHERE date BETWEEN ? AND ?)
+                AND DATE_FORMAT(date, '%w') != 5
+                AND date NOT IN ('" . implode("','", $holidayDates) . "')
             THEN 1 END) as total_absent,
             COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
-        ", [$startDate, $endDate])
+        ")
             ->first();
 
-        // Total Working Days (Excluding Fridays and Holidays)
-        //$totalWorkingDays = (int)($totalDays - $totalFridays - $totalHolidays);
+        // Step 5: Total Working Days
         $totalWorkingDays = (int)($totalDays - $totalNonWorkingDays);
 
-        // Calculate Total Work on Holidays or Fridays
+        // Step 6: Work on Holidays or Fridays
         $totalWorkOnHolidays = Attendance::where('employee_id', $employee_id)
             ->whereIn('date', $specialDates)
             ->where('status', 'Present')
@@ -1712,13 +1712,15 @@ class AttendanceController extends Controller
             'data' => [
                 'total_working_days' => $totalWorkingDays,
                 'total_present' => $summary->total_present ?? 0,
-                'total_absent' => $summary->total_absent ?? 0,  // Excluding Fridays & Holidays
+                'total_absent' => $summary->total_absent ?? 0,
                 'total_late' => $summary->total_late ?? 0,
                 'total_holidays' => $totalHolidays,
+                'total_fridays' => $totalFridays,
                 'total_work_on_holidays' => $totalWorkOnHolidays,
             ],
         ], 200);
     }
+
 
 
 
@@ -1829,17 +1831,35 @@ class AttendanceController extends Controller
         // Get all Fridays in the year
         $fridays = [];
         for ($date = clone $startDate; $date <= $endDate; $date->addDay()) {
-            if ($date->format('w') == 5) {
+            if ($date->format('w') == 5) { // Friday
                 $fridays[] = $date->format('Y-m-d');
             }
         }
 
-        // Get all holidays in the year
-        $holidayDates = DB::table('holidays')
-            ->whereBetween('date', [$startDate, $endDate])
-            ->pluck('date')
-            ->map(fn($date) => Carbon::parse($date)->format('Y-m-d'))
-            ->toArray();
+        // ✅ Get all holidays between start_date & end_date
+        $holidayRanges = DB::table('holidays')
+            ->where(function ($query) use ($startDate, $endDate) {
+                $query->whereBetween('start_date', [$startDate, $endDate])
+                    ->orWhereBetween('end_date', [$startDate, $endDate])
+                    ->orWhere(function ($q) use ($startDate, $endDate) {
+                        $q->where('start_date', '<=', $startDate)
+                            ->where('end_date', '>=', $endDate);
+                    });
+            })
+            ->get(['start_date', 'end_date']);
+
+        // Expand holiday ranges into individual dates
+        $holidayDates = [];
+        foreach ($holidayRanges as $range) {
+            $rangeStart = Carbon::parse($range->start_date);
+            $rangeEnd   = Carbon::parse($range->end_date);
+
+            for ($date = $rangeStart; $date <= $rangeEnd; $date->addDay()) {
+                $holidayDates[] = $date->format('Y-m-d');
+            }
+        }
+
+        $holidayDates = array_unique($holidayDates);
 
         // Find overlap between holidays and fridays
         $commonCount = count(array_intersect($holidayDates, $fridays));
@@ -1856,10 +1876,9 @@ class AttendanceController extends Controller
             COUNT(CASE
                 WHEN status = 'Absent'
                 AND DATE_FORMAT(date, '%w') NOT IN (5)
-                AND date NOT IN (SELECT date FROM holidays WHERE date BETWEEN ? AND ?)
             THEN 1 END) as total_absent,
             COUNT(CASE WHEN late IS NOT NULL AND late != '00:00:00' THEN 1 END) as total_late
-        ", [$startDate, $endDate])
+        ")
             ->first();
 
         // Work on holidays
@@ -1881,6 +1900,7 @@ class AttendanceController extends Controller
             ],
         ], 200);
     }
+
 
 
 
@@ -2112,7 +2132,11 @@ class AttendanceController extends Controller
                 ->where('status', 'Approved')
                 ->where(function ($query) use ($startDate, $endDate) {
                     $query->whereBetween('start_date', [$startDate, $endDate])
-                        ->orWhereBetween('end_date', [$startDate, $endDate]);
+                        ->orWhereBetween('end_date', [$startDate, $endDate])
+                        ->orWhere(function ($q) use ($startDate, $endDate) {
+                            $q->where('start_date', '<=', $startDate)
+                                ->where('end_date', '>=', $endDate);
+                        });
                 })
                 ->get();
 
@@ -2160,19 +2184,43 @@ class AttendanceController extends Controller
             }
 
             // Fetch Total Holidays
-            $holidayDates = DB::table('holidays')
-                ->whereBetween('date', [$startDate, $endDate])
-                ->pluck('date')
-                ->toArray();
+//            $holidayDates = DB::table('holidays')
+//                ->whereBetween('date', [$startDate, $endDate])
+//                ->pluck('date')
+//                ->toArray();
+//
+//            $totalHolidays = count($holidayDates);
 
+            $holidays = DB::table('holidays')
+                ->where(function ($query) use ($startDate, $endDate) {
+                    $query->whereBetween('start_date', [$startDate, $endDate])
+                        ->orWhereBetween('end_date', [$startDate, $endDate])
+                        ->orWhere(function ($q) use ($startDate, $endDate) {
+                            $q->where('start_date', '<=', $startDate)
+                                ->where('end_date', '>=', $endDate);
+                        });
+                })
+                ->get();
+
+            $holidayDates = [];
+            foreach ($holidays as $holiday) {
+                $period = CarbonPeriod::create($holiday->start_date, $holiday->end_date);
+                foreach ($period as $date) {
+                    $holidayDates[] = $date->toDateString();
+                }
+            }
+
+            $holidayDates = array_unique($holidayDates);
             $totalHolidays = count($holidayDates);
+
 
             // Merge holidays and fridays to get all non-working special dates
             $specialDates = array_unique(array_merge($holidayDates, $fridays));
 
 
             // Total Working Days (Excluding Fridays and Holidays)
-            $totalWorkingDays = (int)($totalDays - $totalFridays - $totalHolidays);
+//            $totalWorkingDays = (int)($totalDays - $totalFridays - $totalHolidays);
+            $totalWorkingDays = (int)($totalDays - count($specialDates));
 
 
 
@@ -2212,6 +2260,9 @@ class AttendanceController extends Controller
             'report' => $report
         ]);
     }
+
+
+
 
 
 

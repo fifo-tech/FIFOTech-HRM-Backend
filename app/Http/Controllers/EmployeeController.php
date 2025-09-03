@@ -910,20 +910,33 @@ class EmployeeController extends Controller
             $currentMonth = $currentDate->month;
             $currentDay = $currentDate->day;
 
-            // Fetch holidays in the current month
-            $holidays = Holiday::whereMonth('date', $currentMonth)
-                ->whereYear('date', $currentYear)
-                ->pluck('date')
-                ->map(function ($date) {
-                    return Carbon::parse($date)->toDateString();
+            // Fetch holidays overlapping current month
+            $holidays = Holiday::where(function ($q) use ($currentYear, $currentMonth) {
+                $q->whereYear('start_date', $currentYear)
+                    ->whereMonth('start_date', $currentMonth);
+            })
+                ->orWhere(function ($q) use ($currentYear, $currentMonth) {
+                    $q->whereYear('end_date', $currentYear)
+                        ->whereMonth('end_date', $currentMonth);
                 })
-                ->toArray();
+                ->get(['start_date', 'end_date']);
+
+            // Expand holidays into individual days of current month
+            $holidayDates = [];
+            foreach ($holidays as $holiday) {
+                $period = Carbon::parse($holiday->start_date)->toPeriod($holiday->end_date);
+                foreach ($period as $date) {
+                    if ($date->month == $currentMonth && $date->year == $currentYear) {
+                        $holidayDates[] = $date->toDateString();
+                    }
+                }
+            }
 
             // Calculate last working day (not Friday or a holiday)
             $lastDay = Carbon::create($currentYear, $currentMonth, 1)->endOfMonth();
             while (
                 $lastDay->isFriday() ||
-                in_array($lastDay->toDateString(), $holidays)
+                in_array($lastDay->toDateString(), $holidayDates)
             ) {
                 $lastDay->subDay();
             }
@@ -941,7 +954,7 @@ class EmployeeController extends Controller
                 ->orderBy('date_of_birth', 'asc')
                 ->get(['id', 'user_id', 'phone_num', 'date_of_birth']);
 
-            // Filter only employees who have active users (in case relation returns null)
+            // Filter only employees who have active users
             $employees = $employees->filter(function ($employee) {
                 return $employee->user !== null;
             });
@@ -963,7 +976,7 @@ class EmployeeController extends Controller
                         : null,
                     'celebration_date' => $celebrationDate,
                 ];
-            })->values(); // reset array keys
+            })->values();
 
             return response()->json([
                 'success' => true,
@@ -978,6 +991,7 @@ class EmployeeController extends Controller
             ], 500);
         }
     }
+
 
 
 

@@ -10,6 +10,83 @@ use Illuminate\Support\Facades\Storage;
 
 class DocumentController extends Controller
 {
+//    public function addDocument(Request $request)
+//    {
+//        try {
+//            $user = auth()->user();
+//            $employee = Employee::where('user_id', $user->id)->first();
+//
+//            if (!$employee) {
+//                return $this->response(
+//                    false,
+//                    'Employee record not found for the user',
+//                    null,
+//                    404
+//                );
+//            }
+//
+//            //  Validation
+//            $validator = Validator::make($request->all(), [
+//                'doc_name' => 'required|string|max:255',
+//                'doc_type' => 'required|string|max:50',
+//                'doc_file' => 'required|file|mimes:pdf,zip,txt,doc,docx,xls,xlsx,jpg,png,jpeg|max:5120',
+//            ], [
+//                'doc_file.max'   => 'File size cannot be larger than 5MB.',
+//                'doc_file.mimes' => 'Only pdf, zip, txt, doc, docx, xls, xlsx, jpg, png, jpeg files are allowed.',
+//            ]);
+//
+//            if ($validator->fails()) {
+//                return $this->response(
+//                    false,
+//                    'Validation error',
+//                    $validator->errors(),
+//                    422
+//                );
+//            }
+//
+//            if (!$request->hasFile('doc_file')) {
+//                return $this->response(
+//                    false,
+//                    'No file uploaded',
+//                    null,
+//                    400
+//                );
+//            }
+//
+//            $path = $request->file('doc_file')->store('documents', 'public');
+//
+//            if (!$path) {
+//                return $this->response(
+//                    false,
+//                    'File storage failed',
+//                    null,
+//                    500
+//                );
+//            }
+//
+//            $document = Document::create([
+//                'employee_id' => $employee->id,
+//                'doc_name'    => $request->doc_name,
+//                'doc_type'    => $request->doc_type,
+//                'doc_file'    => $path,
+//            ]);
+//
+//            return $this->response(
+//                true,
+//                'Document added successfully',
+//                $document,
+//                201
+//            );
+//        } catch (\Exception $e) {
+//            return $this->response(
+//                false,
+//                'Failed to add document',
+//                $e->getMessage(),
+//                500
+//            );
+//        }
+//    }
+
     public function addDocument(Request $request)
     {
         try {
